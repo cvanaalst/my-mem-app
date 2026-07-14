@@ -416,6 +416,15 @@ button, input, textarea, select {
   font-size: 15px;
 }
 
+.form-label-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.form-label-row .form-label { margin-top: 0; }
+
+.input-with-btn { display: flex; align-items: center; gap: 6px; }
+.input-with-btn .form-input { flex: 1; }
+
+.field-action-btn { color: var(--text-secondary); flex-shrink: 0; }
+.field-action-btn .icon { width: 18px; height: 18px; }
+
 .file-input {
   background: var(--bg-input);
   border: 1px dashed var(--border);

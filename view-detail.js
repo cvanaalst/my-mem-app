@@ -5,17 +5,21 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab } from "./ui.js";
 
 const { t } = i18n;
 
 const form = document.getElementById("detail-form");
 const mediaBox = document.getElementById("detail-media");
+const btnOpenMedia = document.getElementById("btn-detail-open-media");
+const openMediaLabelEl = document.getElementById("detail-open-media-label");
 const titleInput = document.getElementById("detail-title");
 const linkField = document.getElementById("detail-link-field");
 const urlInput = document.getElementById("detail-url");
+const btnOpenUrl = document.getElementById("btn-detail-open-url");
 const textField = document.getElementById("detail-text-field");
 const textInput = document.getElementById("detail-text");
+const btnOpenText = document.getElementById("btn-detail-open-text");
 const commentInput = document.getElementById("detail-comment");
 const reminderInput = document.getElementById("detail-reminder");
 const tagsInput = document.getElementById("detail-tags-input");
@@ -42,6 +46,16 @@ export function initDetailView(handlers) {
   btnDelete.addEventListener("click", handleDelete);
   btnShare.addEventListener("click", handleShare);
   btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
+  btnOpenUrl.addEventListener("click", () => {
+    const url = urlInput.value.trim();
+    if (!url) { toast(t("noUrlToOpen"), "default"); return; }
+    openInNewTab(url);
+  });
+  btnOpenText.addEventListener("click", () => {
+    const blob = new Blob([textInput.value], { type: "text/markdown" });
+    openBlobInNewTab(blob);
+  });
+  btnOpenMedia.addEventListener("click", handleOpenMedia);
   form.addEventListener("submit", handleSave);
 }
 
@@ -80,6 +94,16 @@ export async function openDetail(id) {
   } else if (item.type === "file") {
     mediaBox.innerHTML = `<div class="file-preview">${escapeName(item.filename || item.title)}</div>`;
     mediaBox.classList.remove("hidden");
+  }
+
+  if (item.type === "image" && item.mediaId) {
+    openMediaLabelEl.textContent = t("openFullSize");
+    btnOpenMedia.classList.remove("hidden");
+  } else if (item.type === "file" && item.mediaId) {
+    openMediaLabelEl.textContent = t("openFile");
+    btnOpenMedia.classList.remove("hidden");
+  } else {
+    btnOpenMedia.classList.add("hidden");
   }
 
   tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, item.tags || []);
@@ -130,6 +154,14 @@ async function handleDelete() {
   toast(t("itemDeleted"), "success");
   onChanged();
   onClose();
+}
+
+async function handleOpenMedia() {
+  const item = currentItem;
+  if (!item.mediaId) return;
+  const media = await db.getMedia(item.mediaId);
+  if (!media || !media.blob) return;
+  openBlobInNewTab(media.blob);
 }
 
 async function handleShare() {

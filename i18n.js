@@ -119,6 +119,12 @@ const dict = {
     shareNotSupported: "Delen wordt niet ondersteund op dit toestel — gekopieerd naar klembord in plaats daarvan.",
     fileTooLargeWarning: "Dit bestand is {size} MB. Grote bestanden vertragen synchronisatie. Toch doorgaan?",
 
+    openInNewTab: "Open link in nieuw tabblad",
+    openInMdViewer: "Open in Markdown-viewer",
+    openFullSize: "Volledige grootte openen",
+    openFile: "Bestand openen",
+    noUrlToOpen: "Geen URL om te openen.",
+
     dateCreated: "Aangemaakt: {date}",
     dateUpdated: "Bijgewerkt: {date}",
   },
@@ -236,6 +242,12 @@ const dict = {
     copiedToClipboard: "Copied to clipboard",
     shareNotSupported: "Sharing isn't supported on this device — copied to clipboard instead.",
     fileTooLargeWarning: "This file is {size} MB. Large files slow down sync. Continue anyway?",
+
+    openInNewTab: "Open link in new tab",
+    openInMdViewer: "Open in Markdown viewer",
+    openFullSize: "Open full size",
+    openFile: "Open file",
+    noUrlToOpen: "No URL to open.",
 
     dateCreated: "Created: {date}",
     dateUpdated: "Updated: {date}",

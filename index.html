@@ -102,17 +102,30 @@
         <button id="btn-detail-delete" class="text-btn danger" data-i18n="delete">Verwijder</button>
       </div>
       <div id="detail-media" class="detail-media hidden"></div>
+      <button type="button" id="btn-detail-open-media" class="secondary-btn full-width hidden">
+        <span id="detail-open-media-label"></span>
+      </button>
       <form id="detail-form" class="form">
         <label class="form-label" data-i18n="fieldTitle">Titel</label>
         <input id="detail-title" class="form-input" type="text" required>
 
         <div id="detail-link-field" class="hidden">
           <label class="form-label" data-i18n="fieldUrl">URL</label>
-          <input id="detail-url" class="form-input" type="url">
+          <div class="input-with-btn">
+            <input id="detail-url" class="form-input" type="url">
+            <button type="button" id="btn-detail-open-url" class="icon-btn field-action-btn" data-i18n-aria="openInNewTab">
+              <svg viewBox="0 0 24 24" class="icon"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5h5V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-5h-2v5H5V5z"/></svg>
+            </button>
+          </div>
         </div>
 
         <div id="detail-text-field" class="hidden">
-          <label class="form-label" data-i18n="fieldText">Tekst</label>
+          <div class="form-label-row">
+            <label class="form-label" data-i18n="fieldText">Tekst</label>
+            <button type="button" id="btn-detail-open-text" class="icon-btn field-action-btn" data-i18n-aria="openInMdViewer">
+              <svg viewBox="0 0 24 24" class="icon"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5h5V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-5h-2v5H5V5z"/></svg>
+            </button>
+          </div>
           <textarea id="detail-text" class="form-input form-textarea" rows="6"></textarea>
         </div>
 
@@ -159,7 +172,12 @@
       <form id="add-form" class="form">
         <div id="add-link-field" class="add-type-field">
           <label class="form-label" data-i18n="fieldUrl">URL</label>
-          <input id="add-url" class="form-input" type="url" data-i18n-placeholder="urlPlaceholder">
+          <div class="input-with-btn">
+            <input id="add-url" class="form-input" type="url" data-i18n-placeholder="urlPlaceholder">
+            <button type="button" id="btn-add-open-url" class="icon-btn field-action-btn" data-i18n-aria="openInNewTab">
+              <svg viewBox="0 0 24 24" class="icon"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5h5V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-5h-2v5H5V5z"/></svg>
+            </button>
+          </div>
         </div>
 
         <div id="add-text-field" class="add-type-field hidden">

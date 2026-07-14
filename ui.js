@@ -17,6 +17,28 @@ export function toast(message, kind = "default") {
   setTimeout(() => el.remove(), 2600);
 }
 
+/* ------------------------------------------------------------------- open */
+
+/** Opens a plain URL (link items) in a new tab/window. */
+export function openInNewTab(url) {
+  window.open(url, "_blank", "noopener");
+}
+
+/**
+ * Opens a Blob in a new tab via a temporary object URL, letting the
+ * browser/OS decide how to handle it based on the blob's own MIME type —
+ * e.g. iOS Safari's Quick Look offers "Open in…" with any installed app
+ * that handles that type (Excel, Word, a Markdown editor, etc.). This is
+ * the closest a static client-only web app can get to "open in the
+ * correct native app": there's no way to name a specific target app or
+ * attach a real filename/extension to a blob: URL, only the MIME type.
+ */
+export function openBlobInNewTab(blob) {
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
 /* --------------------------------------------------------------- confirm */
 
 export function confirmDialog(message, okLabel) {

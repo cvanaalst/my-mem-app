@@ -4,7 +4,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, setupTagInput } from "./ui.js";
+import { toast, confirmDialog, setupTagInput, openInNewTab } from "./ui.js";
 
 const { t } = i18n;
 
@@ -18,6 +18,7 @@ const tagsChips = document.getElementById("add-tags-chips");
 const tagsSuggestions = document.getElementById("add-tags-suggestions");
 const btnCancel = document.getElementById("btn-add-cancel");
 const btnPin = document.getElementById("btn-add-pin");
+const btnOpenUrl = document.getElementById("btn-add-open-url");
 
 const fields = {
   link: document.getElementById("add-link-field"),
@@ -49,6 +50,11 @@ export function initAddView(handlers) {
 
   btnCancel.addEventListener("click", () => { resetForm(); onCancel(); });
   btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
+  btnOpenUrl.addEventListener("click", () => {
+    const url = urlInput.value.trim();
+    if (!url) { toast(t("noUrlToOpen"), "default"); return; }
+    openInNewTab(url);
+  });
   imageInput.addEventListener("change", handleImageSelect);
   fileInput.addEventListener("change", handleFileSelect);
   form.addEventListener("submit", handleSave);
