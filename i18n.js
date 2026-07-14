@@ -9,10 +9,16 @@ const dict = {
     appName: "Second Memory",
 
     search: "Zoeken",
-    searchPlaceholder: "Zoek op titel of opmerking…",
+    searchPlaceholder: "Zoek op titel, tekst of link…",
     filter: "Filter",
     filterType: "Type",
     filterTags: "Tags",
+    filterSort: "Sorteren",
+    sortCreatedDesc: "Nieuwste eerst",
+    sortCreatedAsc: "Oudste eerst",
+    sortUpdatedDesc: "Recent gewijzigd",
+    sortUpdatedAsc: "Langst geleden gewijzigd",
+    filterDateRange: "Periode",
     clearFilters: "Wis filters",
     noResults: "Geen resultaten voor deze zoekopdracht.",
 
@@ -34,10 +40,13 @@ const dict = {
     fieldTags: "Tags",
     fieldImage: "Foto",
     fieldFile: "Bestand",
+    fieldReminder: "Herinnering (optioneel)",
     tagsPlaceholder: "tag toevoegen, Enter of komma",
     urlPlaceholder: "https://…",
-    paste: "Plakken",
-    pasteNotSupported: "Plakken via de knop lukt hier niet — tik in het veld en houd vast tot 'Plakken' verschijnt.",
+    pinItem: "Vastzetten",
+    duplicateLinkMessage: "Deze link staat al opgeslagen als '{title}'. Toch opslaan?",
+    saveAnyway: "Toch opslaan",
+    reminderDue: "Herinnering: {date}",
     titleRequired: "Titel is verplicht.",
 
     addTitle: "Nieuw item",
@@ -97,6 +106,7 @@ const dict = {
 
     about: "Over",
     aboutText: "Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.",
+    versionInfo: "Ontworpen door {designer} — {date}, build {build}",
 
     tabList: "Lijst",
     tabPhotos: "Foto's",
@@ -117,10 +127,16 @@ const dict = {
     appName: "Second Memory",
 
     search: "Search",
-    searchPlaceholder: "Search title or comment…",
+    searchPlaceholder: "Search title, text or link…",
     filter: "Filter",
     filterType: "Type",
     filterTags: "Tags",
+    filterSort: "Sort",
+    sortCreatedDesc: "Newest first",
+    sortCreatedAsc: "Oldest first",
+    sortUpdatedDesc: "Recently modified",
+    sortUpdatedAsc: "Least recently modified",
+    filterDateRange: "Date range",
     clearFilters: "Clear filters",
     noResults: "No results for this search.",
 
@@ -142,10 +158,13 @@ const dict = {
     fieldTags: "Tags",
     fieldImage: "Photo",
     fieldFile: "File",
+    fieldReminder: "Reminder (optional)",
     tagsPlaceholder: "add tag, Enter or comma",
     urlPlaceholder: "https://…",
-    paste: "Paste",
-    pasteNotSupported: "Paste via the button isn't available here — tap the field and hold until 'Paste' appears.",
+    pinItem: "Pin",
+    duplicateLinkMessage: "This link is already saved as '{title}'. Save anyway?",
+    saveAnyway: "Save anyway",
+    reminderDue: "Reminder: {date}",
     titleRequired: "Title is required.",
 
     addTitle: "New item",
@@ -205,6 +224,7 @@ const dict = {
 
     about: "About",
     aboutText: "Second Memory — your personal, private memory. All data stays on your device and in your own Google Drive.",
+    versionInfo: "Designed by {designer} — {date}, build {build}",
 
     tabList: "List",
     tabPhotos: "Photos",

@@ -7,8 +7,10 @@ import { state } from "./state.js";
 import { i18n } from "./i18n.js";
 import { toast, confirmDialog, alertDialog, formatDate, formatBytes } from "./ui.js";
 import { sync } from "./sync.js";
+import { APP_VERSION } from "./version.js";
 
 const { t } = i18n;
+const versionTextEl = document.getElementById("version-text");
 
 const btnSyncNow = document.getElementById("btn-sync-now");
 const syncStatusEl = document.getElementById("sync-status");
@@ -56,6 +58,7 @@ export async function refreshSettingsView() {
   highlightTheme(state.theme);
   await renderLastSync();
   await renderStorageInfo();
+  versionTextEl.textContent = t("versionInfo", APP_VERSION);
 }
 
 function highlightTheme(theme) {
@@ -163,7 +166,7 @@ async function filteredOrAllItems() {
 }
 
 function toCsv(items) {
-  const cols = ["id", "type", "title", "comment", "tags", "url", "filename", "createdAt", "updatedAt"];
+  const cols = ["id", "type", "title", "comment", "tags", "url", "filename", "pinned", "reminderAt", "createdAt", "updatedAt"];
   const lines = [cols.join(",")];
   for (const item of items) {
     const row = cols.map((c) => {

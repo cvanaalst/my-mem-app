@@ -17,6 +17,7 @@ const urlInput = document.getElementById("detail-url");
 const textField = document.getElementById("detail-text-field");
 const textInput = document.getElementById("detail-text");
 const commentInput = document.getElementById("detail-comment");
+const reminderInput = document.getElementById("detail-reminder");
 const tagsInput = document.getElementById("detail-tags-input");
 const tagsChips = document.getElementById("detail-tags-chips");
 const tagsSuggestions = document.getElementById("detail-tags-suggestions");
@@ -25,9 +26,11 @@ const updatedEl = document.getElementById("detail-updated");
 const btnBack = document.getElementById("btn-detail-back");
 const btnDelete = document.getElementById("btn-detail-delete");
 const btnShare = document.getElementById("btn-detail-share");
+const btnPin = document.getElementById("btn-detail-pin");
 
 let tagWidget = null;
 let currentItem = null;
+let pinned = false;
 let onClose = () => {};
 let onChanged = () => {};
 
@@ -38,7 +41,12 @@ export function initDetailView(handlers) {
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
   btnShare.addEventListener("click", handleShare);
+  btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
   form.addEventListener("submit", handleSave);
+}
+
+function renderPin() {
+  btnPin.classList.toggle("active", pinned);
 }
 
 export async function openDetail(id) {
@@ -49,6 +57,9 @@ export async function openDetail(id) {
 
   titleInput.value = item.title || "";
   commentInput.value = item.comment || "";
+  reminderInput.value = item.reminderAt || "";
+  pinned = !!item.pinned;
+  renderPin();
   createdEl.textContent = t("dateCreated", { date: formatDate(item.createdAt) });
   updatedEl.textContent = t("dateUpdated", { date: formatDate(item.updatedAt) });
 
@@ -81,11 +92,21 @@ async function handleSave(e) {
   e.preventDefault();
   if (!titleInput.value.trim()) { toast(t("titleRequired"), "error"); return; }
 
+  if (currentItem.type === "link") {
+    const dup = await db.findDuplicateLink(urlInput.value.trim(), currentItem.id);
+    if (dup) {
+      const proceed = await confirmDialog(t("duplicateLinkMessage", { title: dup.title }), t("saveAnyway"));
+      if (!proceed) return;
+    }
+  }
+
   const updated = {
     ...currentItem,
     title: titleInput.value.trim(),
     comment: commentInput.value.trim(),
     tags: tagWidget.getTags(),
+    pinned,
+    reminderAt: reminderInput.value || null,
     updatedAt: new Date().toISOString(),
   };
   if (currentItem.type === "link") updated.url = urlInput.value.trim();
@@ -149,3 +170,4 @@ function escapeName(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+

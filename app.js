@@ -40,7 +40,7 @@ function showView(name) {
 async function goList() { showView("list"); await resetAndLoadList(); }
 async function goGrid() { showView("grid"); await resetAndLoadGrid(); }
 async function goSettings() { showView("settings"); await refreshSettingsView(); }
-async function goAdd() { showView("add"); await openAdd(); }
+async function goAdd(prefill = null) { showView("add"); await openAdd(prefill); }
 
 async function goDetail(id) {
   showView("detail");
@@ -82,6 +82,9 @@ const btnFilterToggle = document.getElementById("btn-filter-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const typeFilterChips = document.getElementById("type-filter-chips");
 const tagFilterChips = document.getElementById("tag-filter-chips");
+const sortSelect = document.getElementById("sort-select");
+const dateFromInput = document.getElementById("filter-date-from");
+const dateToInput = document.getElementById("filter-date-to");
 const btnClearFilters = document.getElementById("btn-clear-filters");
 
 let searchDebounce = null;
@@ -101,13 +104,44 @@ searchInput.addEventListener("input", () => {
 
 btnFilterToggle.addEventListener("click", async () => {
   filterPanel.classList.toggle("hidden");
-  if (!filterPanel.classList.contains("hidden")) await renderFilterChips();
+  if (!filterPanel.classList.contains("hidden")) {
+    await renderFilterChips();
+    syncSortAndDateInputs();
+  }
 });
+
+sortSelect.addEventListener("change", () => {
+  const [sortBy, sortDir] = sortSelect.value.split("-");
+  state.filters.sortBy = sortBy;
+  state.filters.sortDir = sortDir;
+  refreshCurrentView();
+});
+
+dateFromInput.addEventListener("change", () => {
+  state.filters.dateFrom = dateFromInput.value || null;
+  refreshCurrentView();
+});
+
+dateToInput.addEventListener("change", () => {
+  state.filters.dateTo = dateToInput.value || null;
+  refreshCurrentView();
+});
+
+function syncSortAndDateInputs() {
+  sortSelect.value = `${state.filters.sortBy}-${state.filters.sortDir}`;
+  dateFromInput.value = state.filters.dateFrom || "";
+  dateToInput.value = state.filters.dateTo || "";
+}
 
 btnClearFilters.addEventListener("click", () => {
   state.filters.tags = [];
   state.filters.type = null;
+  state.filters.sortBy = "created";
+  state.filters.sortDir = "desc";
+  state.filters.dateFrom = null;
+  state.filters.dateTo = null;
   renderFilterChips();
+  syncSortAndDateInputs();
   refreshCurrentView();
 });
 
@@ -118,6 +152,14 @@ async function activateTagFilter(tag) {
     state.filters.tags = [...state.filters.tags, tag];
   }
   await renderFilterChips();
+  syncSortAndDateInputs();
+  await refreshCurrentView();
+}
+
+async function togglePin(id, pinned) {
+  const item = await db.getItem(id);
+  if (!item) return;
+  await db.putItem({ ...item, pinned, updatedAt: new Date().toISOString() });
   await refreshCurrentView();
 }
 
@@ -222,6 +264,32 @@ async function autoSyncOnLaunch() {
   }
 }
 
+/**
+ * Parses a "#add?type=link&url=...&title=..." deep-link hash into Add-form
+ * prefill data. This is what an iOS Shortcut added to the share sheet
+ * targets — since a PWA itself can't register as a real share-sheet
+ * destination, a Shortcut is the workaround: it grabs the shared URL/text
+ * and opens this app with it pre-filled, one tap from the share sheet
+ * to a saved item. See README for the Shortcut setup.
+ */
+function parseAddHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith("#add")) return null;
+  const params = new URLSearchParams(hash.slice(4).replace(/^\?/, ""));
+  const url = params.get("url") || "";
+  const text = params.get("text") || "";
+  const type = params.get("type") || (url ? "link" : text ? "text" : "link");
+  const tagsParam = params.get("tags");
+  return {
+    type,
+    url,
+    text,
+    title: params.get("title") || "",
+    comment: params.get("comment") || "",
+    tags: tagsParam ? tagsParam.split(",").map((tg) => tg.trim().toLowerCase()).filter(Boolean) : [],
+  };
+}
+
 async function resumeAfterOAuthRedirect() {
   const pending = await sync.handleRedirectReturn();
   if (pending === "sync") {
@@ -246,7 +314,7 @@ async function boot() {
   state.lang = i18n.getLang();
   i18n.applyTranslations();
 
-  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter });
+  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin });
   initGridView({ onOpenItem: goDetail });
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView });
   initAddView({ onSaved: goList, onCancel: backFromDetailOrAdd });
@@ -258,7 +326,14 @@ async function boot() {
   await resumeAfterOAuthRedirect();
   await maybeShowInstallHint();
 
-  await goList();
+  const addPrefill = parseAddHash();
+  if (addPrefill) {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    appEl.dataset.prevTab = "list";
+    await goAdd(addPrefill);
+  } else {
+    await goList();
+  }
   autoSyncOnLaunch();
 }
 

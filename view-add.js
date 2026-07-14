@@ -4,7 +4,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, setupTagInput } from "./ui.js";
+import { toast, confirmDialog, setupTagInput } from "./ui.js";
 
 const { t } = i18n;
 
@@ -12,11 +12,12 @@ const typeSelector = document.getElementById("add-type-selector");
 const form = document.getElementById("add-form");
 const titleInput = document.getElementById("add-title");
 const commentInput = document.getElementById("add-comment");
+const reminderInput = document.getElementById("add-reminder");
 const tagsInput = document.getElementById("add-tags-input");
 const tagsChips = document.getElementById("add-tags-chips");
 const tagsSuggestions = document.getElementById("add-tags-suggestions");
 const btnCancel = document.getElementById("btn-add-cancel");
-const btnPasteUrl = document.getElementById("btn-paste-url");
+const btnPin = document.getElementById("btn-add-pin");
 
 const fields = {
   link: document.getElementById("add-link-field"),
@@ -34,6 +35,7 @@ const filePreview = document.getElementById("add-file-preview");
 let tagWidget = null;
 let onSaved = () => {};
 let onCancel = () => {};
+let pinned = false;
 
 export function initAddView(handlers) {
   onSaved = handlers.onSaved;
@@ -46,18 +48,32 @@ export function initAddView(handlers) {
   });
 
   btnCancel.addEventListener("click", () => { resetForm(); onCancel(); });
-  btnPasteUrl.addEventListener("click", pasteUrl);
+  btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
   imageInput.addEventListener("change", handleImageSelect);
   fileInput.addEventListener("change", handleFileSelect);
   form.addEventListener("submit", handleSave);
 }
 
-export async function openAdd() {
+/**
+ * Opens the add form, optionally pre-filled — used both for the normal
+ * "+" tab and for quick-capture via the #add hash deep-link (see app.js),
+ * which is what an iOS Shortcut added to the share sheet targets since a
+ * PWA itself can't register as a share-sheet destination.
+ */
+export async function openAdd(prefill = null) {
   resetForm();
   const allTags = (await db.getAllTags()).map((x) => x.tag);
-  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
+  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, prefill?.tags || []);
   tagWidget.renderSuggestions(allTags);
   tagsInput.oninput = () => tagWidget.renderSuggestions(allTags);
+
+  if (prefill) {
+    if (prefill.type) setType(prefill.type);
+    if (prefill.url) urlInput.value = prefill.url;
+    if (prefill.text) textInput.value = prefill.text;
+    if (prefill.title) titleInput.value = prefill.title;
+    if (prefill.comment) commentInput.value = prefill.comment;
+  }
 }
 
 function resetForm() {
@@ -68,7 +84,13 @@ function resetForm() {
   filePreview.innerHTML = "";
   state.addImageFile = null;
   state.addFileFile = null;
+  pinned = false;
+  renderPin();
   setType("link");
+}
+
+function renderPin() {
+  btnPin.classList.toggle("active", pinned);
 }
 
 function setType(type) {
@@ -77,18 +99,6 @@ function setType(type) {
     btn.classList.toggle("active", btn.dataset.type === type);
   });
   Object.entries(fields).forEach(([key, el]) => el.classList.toggle("hidden", key !== type));
-}
-
-async function pasteUrl() {
-  try {
-    const text = await navigator.clipboard.readText();
-    if (text) urlInput.value = text;
-  } catch (_) {
-    // iOS Safari (especially standalone/Home-Screen PWAs) frequently denies
-    // programmatic clipboard reads outright, even from a direct tap. There's
-    // no reliable workaround — tell the user the fallback that always works.
-    toast(t("pasteNotSupported"), "default");
-  }
 }
 
 function handleImageSelect() {
@@ -123,6 +133,14 @@ async function handleSave(e) {
   if (type === "image" && !state.addImageFile) { toast(t("fieldImage"), "error"); return; }
   if (type === "file" && !state.addFileFile) { toast(t("fieldFile"), "error"); return; }
 
+  if (type === "link") {
+    const dup = await db.findDuplicateLink(urlInput.value.trim());
+    if (dup) {
+      const proceed = await confirmDialog(t("duplicateLinkMessage", { title: dup.title }), t("saveAnyway"));
+      if (!proceed) return;
+    }
+  }
+
   const now = new Date().toISOString();
   const item = {
     id: makeId(),
@@ -130,6 +148,8 @@ async function handleSave(e) {
     title: titleInput.value.trim(),
     comment: commentInput.value.trim(),
     tags: tagWidget.getTags(),
+    pinned,
+    reminderAt: reminderInput.value || null,
     url: null, text: null, mediaId: null, filename: null, mimeType: null,
     createdAt: now,
     updatedAt: now,

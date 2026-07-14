@@ -16,6 +16,10 @@ const lightboxNext = document.getElementById("lightbox-next");
 let objectUrls = [];
 let onOpenItem = () => {};
 
+// Same staleness guard as view-list.js: discards results from a
+// resetAndLoadGrid() call superseded by a newer one before it resolved.
+let generation = 0;
+
 export function initGridView(handlers) {
   onOpenItem = handlers.onOpenItem;
   lightboxClose.addEventListener("click", closeLightbox);
@@ -42,23 +46,29 @@ export function initGridView(handlers) {
 }
 
 export async function resetAndLoadGrid() {
-  revokeUrls();
-  gridEl.innerHTML = "";
+  generation++;
+  const gen = generation;
 
-  let images = await db.getImageItems();
-  const { search, tags, type } = state.filters;
+  const { search, tags, type, sortBy, sortDir, dateFrom, dateTo } = state.filters;
+  let images = await db.getImageItems({ sortBy, sortDir, dateFrom, dateTo });
+
+  if (gen !== generation) return; // superseded by a newer resetAndLoadGrid — discard
+
   if (type && type !== "image") images = [];
   if (search) {
     const needle = db.normalizeSearchText(search);
     const words = needle.split(/\s+/).filter(Boolean);
     images = images.filter((item) => {
-      const haystack = db.normalizeSearchText(`${item.title || ""} ${item.comment || ""}`);
+      const haystack = db.normalizeSearchText(`${item.title || ""} ${item.comment || ""} ${item.text || ""} ${item.url || ""}`);
       return words.every((w) => haystack.includes(w));
     });
   }
   if (tags.length) {
     images = images.filter((item) => tags.every((tg) => (item.tags || []).includes(tg)));
   }
+
+  revokeUrls();
+  gridEl.innerHTML = "";
 
   state.grid.images = images;
   emptyEl.classList.toggle("hidden", images.length > 0);

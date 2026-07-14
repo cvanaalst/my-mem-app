@@ -11,6 +11,10 @@ export const state = {
     search: "",
     tags: [],
     type: null,
+    sortBy: "created",   // "created" | "updated"
+    sortDir: "desc",     // "desc" | "asc"
+    dateFrom: null,      // "YYYY-MM-DD" or null
+    dateTo: null,        // "YYYY-MM-DD" or null
   },
 
   list: {

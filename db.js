@@ -87,6 +87,18 @@ async function putItems(items) {
   });
 }
 
+function normalizeUrl(url) {
+  return (url || "").trim().toLowerCase().replace(/\/+$/, "");
+}
+
+/** Finds a live link item with the same URL (normalized), excluding excludeId (the item being edited, if any). */
+async function findDuplicateLink(url, excludeId = null) {
+  if (!url) return null;
+  const target = normalizeUrl(url);
+  const all = await getAllItems();
+  return all.find((i) => i.id !== excludeId && i.type === "link" && !i.deletedAt && normalizeUrl(i.url) === target) || null;
+}
+
 async function getItem(id) {
   return tx(["items"], "readonly", (t) => requestToPromise(t.objectStore("items").get(id)));
 }
@@ -97,16 +109,19 @@ async function getAllItems() {
 
 /**
  * Query live (non-deleted) items with search/tag/type filtering,
- * reverse-chronological (createdAt desc), paginated.
- * opts: { search, tags: string[], type, offset, limit }
+ * reverse-chronological by default, paginated.
+ * opts: { search, tags: string[], type, offset, limit, sortBy, sortDir, dateFrom, dateTo }
  * Returns { results, total, hasMore }
  */
 async function queryItems(opts = {}) {
-  const { search = "", tags = [], type = null, offset = 0, limit = 30 } = opts;
+  const {
+    search = "", tags = [], type = null, offset = 0, limit = 30,
+    sortBy = "created", sortDir = "desc", dateFrom = null, dateTo = null,
+  } = opts;
   const all = await getAllItems();
   const needle = normalizeSearchText(search);
 
-  const filtered = all.filter((item) => {
+  let filtered = all.filter((item) => {
     if (item.deletedAt) return false;
     if (type && item.type !== type) return false;
     if (tags.length > 0) {
@@ -114,26 +129,56 @@ async function queryItems(opts = {}) {
       if (!tags.every((t) => itemTags.includes(t))) return false;
     }
     if (needle) {
-      const haystack = normalizeSearchText(`${item.title || ""} ${item.comment || ""}`);
+      const haystack = normalizeSearchText(`${item.title || ""} ${item.comment || ""} ${item.text || ""} ${item.url || ""}`);
       const words = needle.split(/\s+/).filter(Boolean);
       if (!words.every((w) => haystack.includes(w))) return false;
     }
     return true;
   });
 
-  filtered.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  filtered = applyDateRange(filtered, dateFrom, dateTo);
+  filtered = sortItems(filtered, sortBy, sortDir);
 
   const total = filtered.length;
   const results = filtered.slice(offset, offset + limit);
   return { results, total, hasMore: offset + limit < total };
 }
 
-/** All image items, reverse-chronological, for the photo grid. */
-async function getImageItems() {
+/** All image items for the photo grid, with the same sort/date-range options as queryItems. */
+async function getImageItems(opts = {}) {
+  const { sortBy = "created", sortDir = "desc", dateFrom = null, dateTo = null } = opts;
   const all = await getAllItems();
-  return all
-    .filter((item) => item.type === "image" && !item.deletedAt)
-    .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+  let images = all.filter((item) => item.type === "image" && !item.deletedAt);
+  images = applyDateRange(images, dateFrom, dateTo);
+  return sortItems(images, sortBy, sortDir);
+}
+
+/** Filters items to those whose createdAt falls within [dateFrom, dateTo] (both "YYYY-MM-DD", inclusive). */
+function applyDateRange(items, dateFrom, dateTo) {
+  if (!dateFrom && !dateTo) return items;
+  const toBound = dateTo ? `${dateTo}T23:59:59.999Z` : null;
+  return items.filter((item) => {
+    const created = item.createdAt || "";
+    if (dateFrom && created < dateFrom) return false;
+    if (toBound && created > toBound) return false;
+    return true;
+  });
+}
+
+/**
+ * Sorts a copy of items by createdAt/updatedAt, ascending or descending.
+ * Pinned items are always grouped first, each group sorted independently
+ * so the chosen sort direction still applies within pinned/unpinned.
+ */
+function sortItems(items, sortBy, sortDir) {
+  const field = sortBy === "updated" ? "updatedAt" : "createdAt";
+  const orderGroup = (group) => {
+    const sorted = [...group].sort((a, b) => (a[field] || "").localeCompare(b[field] || ""));
+    return sortDir === "asc" ? sorted : sorted.reverse();
+  };
+  const pinned = items.filter((item) => item.pinned);
+  const unpinned = items.filter((item) => !item.pinned);
+  return [...orderGroup(pinned), ...orderGroup(unpinned)];
 }
 
 /** Distinct tags across all live items, with counts, alphabetical. */
@@ -278,6 +323,7 @@ export const db = {
   openDB,
   putItem,
   putItems,
+  findDuplicateLink,
   getItem,
   getAllItems,
   queryItems,

@@ -56,14 +56,35 @@ The original idea of using authorization-code + PKCE as the fallback (no client 
 3. Repeat on each device (iPhone, iPad).
 4. On the very first launch on a new device, tap **Sync now** in Settings — since your Drive already has data from another device (or none, if this is truly the first device), this pulls everything down. A "restore" is just the ordinary sync algorithm running against an empty local database — there's no separate restore step needed for a normal first sync.
 
-Note: because iOS Safari doesn't support the Web Share Target API, Second Memory can't register as a share-sheet destination. Quick capture on iPhone is: copy the link/text → open the app → Add → paste (a **Paste** button is provided next to the URL field).
+Note: because iOS Safari doesn't support the Web Share Target API, Second Memory can't register as a share-sheet destination directly. The simplest capture is: copy the link/text → open the app → Add → tap-and-hold the URL/text field → Paste. For actual one-tap capture from the share sheet, set up the Shortcut below.
 
-## 4. Known limitations
+## 4. Quick capture via iOS Shortcuts (share-sheet workaround)
+
+A Shortcut *can* appear in the iOS share sheet even though a PWA can't. The Shortcut grabs whatever you're sharing and opens Second Memory with it pre-filled, via a `#add?...` URL the app parses on load.
+
+**"Save Link to Second Memory"** (share a URL from Safari, Maps, etc.):
+1. Shortcuts app → **+** → name it "Save Link to Second Memory".
+2. Tap the settings icon (ⓘ) → enable **Show in Share Sheet** → set "Share Sheet Types" to **URLs**.
+3. Add action **Text**: content `https://<your-pages-url>/#add?type=link&url=`  (use your actual GitHub Pages URL, e.g. `https://cvanaalst.github.io/my-mem-app/`).
+4. Add action **URL Encode** → input: **Shortcut Input**.
+5. Add action **Text**: combine the two previous results (the fixed prefix + the encoded input) into one string.
+6. Add action **Open URLs** → input: the combined text from step 5.
+
+**"Save Text to Second Memory"** (share selected text from Notes, Safari, etc.):
+Same steps, but "Share Sheet Types" = **Text**, and the prefix in step 3 is `https://<your-pages-url>/#add?type=text&text=`.
+
+Once both are installed, sharing a link or text anywhere on iOS → Shortcuts → the relevant one → opens Second Memory straight into a pre-filled Add form; you just add a title/tags and tap Save.
+
+Hash parameters the app understands: `type` (`link`/`text`, inferred from `url`/`text` if omitted), `url`, `text`, `title`, `comment`, `tags` (comma-separated). All values must be URL-encoded.
+
+Note: iOS opens this URL in a regular Safari tab, not inside the installed Home-Screen app — iOS doesn't hand links to Home-Screen web apps the way it does with native apps. The Add form still works fine there (it's the same site); it just isn't the standalone window. Save the item and switch back to the Home Screen icon afterward.
+
+## 5. Known limitations
 
 - **Token lifetime (~1 hour).** There's no silent refresh — the implicit OAuth flow doesn't issue refresh tokens. Sync is always an explicit action: the sync button, or auto-sync on launch (only when a still-valid cached token exists — it never pops a login prompt automatically on startup).
 - **Safari storage eviction.** Safari can evict IndexedDB/Cache Storage data for sites that haven't been used in a while, or under device storage pressure. The app calls `navigator.storage.persist()` on startup to ask for persistent (non-evictable) storage — Settings → Storage shows whether the browser granted it. If it wasn't granted, open the app regularly and keep it installed to Home Screen (standalone PWAs are less likely to be evicted than plain Safari tabs).
 - **1600 px image policy.** Photos are resized client-side to a maximum of 1600 px on the longest side (JPEG, quality ~0.85) before being stored or synced — this keeps local storage and Drive usage reasonable. The original full-resolution file is not kept. A 300 px thumbnail is generated alongside for grid/list views.
-- **No iOS share-sheet capture.** See the note in section 3 — this is a platform limitation of iOS Safari PWAs, not something this app can work around.
+- **No native iOS share-sheet capture.** This is a platform limitation of iOS Safari PWAs — see section 4 for the Shortcuts-based workaround, which gets you one-tap capture without it.
 - **Delete beats edit.** If you delete an item on one device and edit the same item on another device before syncing, the delete always wins once they sync — even if the edit happened later. This is deliberate: resurrecting an item whose media may already be gone from Drive was judged worse than occasionally losing a late edit. Deletes are terminal.
 - **Large files.** Files over 10 MB show a confirmation dialog before syncing (large files slow down sync); anything under 5 MB uploads in one request, larger files use Drive's resumable upload endpoint automatically.
 - **Single-writer race.** If two devices sync at literally the same moment, the last one to write `items.json` wins for that sync cycle. Per-record last-write-wins merging limits the damage to that one cycle; there's no server-side locking (this app talks to Drive via plain `fetch()`, no backend of its own).

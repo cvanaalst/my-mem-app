@@ -48,6 +48,23 @@
         <span class="filter-label" data-i18n="filterTags">Tags</span>
         <div id="tag-filter-chips" class="chip-row"></div>
       </div>
+      <div class="filter-section">
+        <span class="filter-label" data-i18n="filterSort">Sorteren</span>
+        <select id="sort-select" class="form-select full-width-select">
+          <option value="created-desc" data-i18n="sortCreatedDesc">Nieuwste eerst</option>
+          <option value="created-asc" data-i18n="sortCreatedAsc">Oudste eerst</option>
+          <option value="updated-desc" data-i18n="sortUpdatedDesc">Recent gewijzigd</option>
+          <option value="updated-asc" data-i18n="sortUpdatedAsc">Langst geleden gewijzigd</option>
+        </select>
+      </div>
+      <div class="filter-section">
+        <span class="filter-label" data-i18n="filterDateRange">Periode</span>
+        <div class="date-range-row">
+          <input type="date" id="filter-date-from" class="form-input date-input">
+          <span class="date-range-sep">–</span>
+          <input type="date" id="filter-date-to" class="form-input date-input">
+        </div>
+      </div>
       <button id="btn-clear-filters" class="text-btn" data-i18n="clearFilters">Wis filters</button>
     </div>
   </div>
@@ -79,6 +96,9 @@
     <section id="view-detail" class="view hidden">
       <div class="detail-header">
         <button id="btn-detail-back" class="text-btn" data-i18n="back">Terug</button>
+        <button type="button" id="btn-detail-pin" class="icon-btn pin-toggle" data-i18n-aria="pinItem">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>
+        </button>
         <button id="btn-detail-delete" class="text-btn danger" data-i18n="delete">Verwijder</button>
       </div>
       <div id="detail-media" class="detail-media hidden"></div>
@@ -98,6 +118,9 @@
 
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
         <input id="detail-comment" class="form-input" type="text">
+
+        <label class="form-label" data-i18n="fieldReminder">Herinnering (optioneel)</label>
+        <input id="detail-reminder" class="form-input" type="date">
 
         <label class="form-label" data-i18n="fieldTags">Tags</label>
         <input id="detail-tags-input" class="form-input" type="text" data-i18n-placeholder="tagsPlaceholder">
@@ -121,7 +144,9 @@
       <div class="detail-header">
         <button id="btn-add-cancel" class="text-btn" data-i18n="cancel">Annuleer</button>
         <span class="detail-header-title" data-i18n="addTitle">Nieuw item</span>
-        <span style="width:60px"></span>
+        <button type="button" id="btn-add-pin" class="icon-btn pin-toggle" data-i18n-aria="pinItem">
+          <svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>
+        </button>
       </div>
 
       <div class="type-selector" id="add-type-selector">
@@ -134,10 +159,7 @@
       <form id="add-form" class="form">
         <div id="add-link-field" class="add-type-field">
           <label class="form-label" data-i18n="fieldUrl">URL</label>
-          <div class="input-with-btn">
-            <input id="add-url" class="form-input" type="url" data-i18n-placeholder="urlPlaceholder">
-            <button type="button" id="btn-paste-url" class="secondary-btn small" data-i18n="paste">Plakken</button>
-          </div>
+          <input id="add-url" class="form-input" type="url" data-i18n-placeholder="urlPlaceholder">
         </div>
 
         <div id="add-text-field" class="add-type-field hidden">
@@ -162,6 +184,9 @@
 
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
         <input id="add-comment" class="form-input" type="text">
+
+        <label class="form-label" data-i18n="fieldReminder">Herinnering (optioneel)</label>
+        <input id="add-reminder" class="form-input" type="date">
 
         <label class="form-label" data-i18n="fieldTags">Tags</label>
         <input id="add-tags-input" class="form-input" type="text" data-i18n-placeholder="tagsPlaceholder">
@@ -238,6 +263,7 @@
       <div class="settings-group">
         <h2 class="settings-heading" data-i18n="about">Over</h2>
         <p class="about-text" data-i18n="aboutText">Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.</p>
+        <p class="version-text" id="version-text"></p>
       </div>
     </section>
 
