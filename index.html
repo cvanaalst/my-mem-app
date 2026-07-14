@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Second Memory</title>
+
+<!-- PWA / iOS meta -->
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="2nd Memory">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+
+<!-- Google Identity Services (official OAuth script, allowed by hard constraints) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<div id="app" class="app" data-view="list">
+
+  <!-- ===== Top bar ===== -->
+  <header class="topbar">
+    <h1 class="topbar-title" data-i18n="appName">Second Memory</h1>
+    <button id="btn-search-toggle" class="icon-btn" aria-label="Search" data-i18n-aria="search">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M10 2a8 8 0 105.29 14.29l5.2 5.2 1.42-1.41-5.2-5.2A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/></svg>
+    </button>
+  </header>
+
+  <!-- ===== Search & filter bar ===== -->
+  <div id="searchbar" class="searchbar hidden">
+    <div class="searchbar-row">
+      <input id="search-input" type="text" class="search-input" data-i18n-placeholder="searchPlaceholder" autocomplete="off" spellcheck="false">
+      <button id="btn-filter-toggle" class="icon-btn" data-i18n-aria="filter">
+        <svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v2H4zm3 6h10v2H7zm3 6h4v2h-4z"/></svg>
+      </button>
+    </div>
+    <div id="filter-panel" class="filter-panel hidden">
+      <div class="filter-section">
+        <span class="filter-label" data-i18n="filterType">Type</span>
+        <div id="type-filter-chips" class="chip-row"></div>
+      </div>
+      <div class="filter-section">
+        <span class="filter-label" data-i18n="filterTags">Tags</span>
+        <div id="tag-filter-chips" class="chip-row"></div>
+      </div>
+      <button id="btn-clear-filters" class="text-btn" data-i18n="clearFilters">Wis filters</button>
+    </div>
+  </div>
+
+  <!-- ===== Main content ===== -->
+  <main class="content">
+
+    <!-- List view -->
+    <section id="view-list" class="view">
+      <div id="list-empty" class="empty-state hidden">
+        <p data-i18n="emptyList">Nog niets opgeslagen. Tik op + om te beginnen.</p>
+      </div>
+      <div id="list-items" class="item-list"></div>
+      <div id="list-loading" class="loading-state hidden">
+        <div class="spinner"></div>
+      </div>
+      <button id="btn-load-more" class="load-more-btn hidden" data-i18n="loadMore">Meer laden</button>
+    </section>
+
+    <!-- Photo grid view -->
+    <section id="view-grid" class="view hidden">
+      <div id="grid-empty" class="empty-state hidden">
+        <p data-i18n="emptyGrid">Nog geen foto's.</p>
+      </div>
+      <div id="grid-items" class="photo-grid"></div>
+    </section>
+
+    <!-- Detail / edit view -->
+    <section id="view-detail" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-detail-back" class="text-btn" data-i18n="back">Terug</button>
+        <button id="btn-detail-delete" class="text-btn danger" data-i18n="delete">Verwijder</button>
+      </div>
+      <div id="detail-media" class="detail-media hidden"></div>
+      <form id="detail-form" class="form">
+        <label class="form-label" data-i18n="fieldTitle">Titel</label>
+        <input id="detail-title" class="form-input" type="text" required>
+
+        <div id="detail-link-field" class="hidden">
+          <label class="form-label" data-i18n="fieldUrl">URL</label>
+          <input id="detail-url" class="form-input" type="url">
+        </div>
+
+        <div id="detail-text-field" class="hidden">
+          <label class="form-label" data-i18n="fieldText">Tekst</label>
+          <textarea id="detail-text" class="form-input form-textarea" rows="6"></textarea>
+        </div>
+
+        <label class="form-label" data-i18n="fieldComment">Opmerking</label>
+        <input id="detail-comment" class="form-input" type="text">
+
+        <label class="form-label" data-i18n="fieldTags">Tags</label>
+        <input id="detail-tags-input" class="form-input" type="text" data-i18n-placeholder="tagsPlaceholder">
+        <div id="detail-tags-chips" class="chip-row editable"></div>
+        <div id="detail-tags-suggestions" class="suggestion-row hidden"></div>
+
+        <div class="detail-meta">
+          <span id="detail-created"></span>
+          <span id="detail-updated"></span>
+        </div>
+
+        <div class="button-row">
+          <button type="button" id="btn-detail-share" class="secondary-btn" data-i18n="share">Delen</button>
+          <button type="submit" id="btn-detail-save" class="primary-btn" data-i18n="save">Opslaan</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Add view -->
+    <section id="view-add" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-add-cancel" class="text-btn" data-i18n="cancel">Annuleer</button>
+        <span class="detail-header-title" data-i18n="addTitle">Nieuw item</span>
+        <span style="width:60px"></span>
+      </div>
+
+      <div class="type-selector" id="add-type-selector">
+        <button type="button" class="type-btn active" data-type="link" data-i18n="typeLink">Link</button>
+        <button type="button" class="type-btn" data-type="text" data-i18n="typeText">Tekst</button>
+        <button type="button" class="type-btn" data-type="image" data-i18n="typeImage">Foto</button>
+        <button type="button" class="type-btn" data-type="file" data-i18n="typeFile">Bestand</button>
+      </div>
+
+      <form id="add-form" class="form">
+        <div id="add-link-field" class="add-type-field">
+          <label class="form-label" data-i18n="fieldUrl">URL</label>
+          <div class="input-with-btn">
+            <input id="add-url" class="form-input" type="url" data-i18n-placeholder="urlPlaceholder">
+            <button type="button" id="btn-paste-url" class="secondary-btn small" data-i18n="paste">Plakken</button>
+          </div>
+        </div>
+
+        <div id="add-text-field" class="add-type-field hidden">
+          <label class="form-label" data-i18n="fieldText">Tekst</label>
+          <textarea id="add-text" class="form-input form-textarea" rows="6"></textarea>
+        </div>
+
+        <div id="add-image-field" class="add-type-field hidden">
+          <label class="form-label" data-i18n="fieldImage">Foto</label>
+          <input id="add-image-input" type="file" accept="image/*" class="file-input">
+          <div id="add-image-preview" class="image-preview hidden"></div>
+        </div>
+
+        <div id="add-file-field" class="add-type-field hidden">
+          <label class="form-label" data-i18n="fieldFile">Bestand</label>
+          <input id="add-file-input" type="file" class="file-input">
+          <div id="add-file-preview" class="file-preview hidden"></div>
+        </div>
+
+        <label class="form-label" data-i18n="fieldTitle">Titel *</label>
+        <input id="add-title" class="form-input" type="text" required>
+
+        <label class="form-label" data-i18n="fieldComment">Opmerking</label>
+        <input id="add-comment" class="form-input" type="text">
+
+        <label class="form-label" data-i18n="fieldTags">Tags</label>
+        <input id="add-tags-input" class="form-input" type="text" data-i18n-placeholder="tagsPlaceholder">
+        <div id="add-tags-chips" class="chip-row editable"></div>
+        <div id="add-tags-suggestions" class="suggestion-row hidden"></div>
+
+        <button type="submit" class="primary-btn full-width" data-i18n="save">Opslaan</button>
+      </form>
+    </section>
+
+    <!-- Settings view -->
+    <section id="view-settings" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-settings-back" class="text-btn" data-i18n="back">Terug</button>
+        <span class="detail-header-title" data-i18n="settings">Instellingen</span>
+        <span style="width:60px"></span>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="sync">Synchronisatie</h2>
+        <button id="btn-sync-now" class="primary-btn full-width">
+          <span data-i18n="syncNow">Nu synchroniseren</span>
+        </button>
+        <div id="sync-status" class="sync-status"></div>
+        <label class="settings-row">
+          <span data-i18n="autoSync">Automatisch synchroniseren bij starten</span>
+          <input id="toggle-autosync" type="checkbox" checked>
+        </label>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="backupRestore">Back-up &amp; herstel</h2>
+        <button id="btn-backup" class="secondary-btn full-width" data-i18n="createBackup">Back-up maken</button>
+        <button id="btn-restore" class="secondary-btn full-width" data-i18n="restoreBackup">Herstellen</button>
+        <div id="backup-list" class="backup-list hidden"></div>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="exportData">Exporteren</h2>
+        <button id="btn-export-json" class="secondary-btn full-width" data-i18n="exportJson">Exporteer JSON</button>
+        <button id="btn-export-csv" class="secondary-btn full-width" data-i18n="exportCsv">Exporteer CSV</button>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="appearance">Weergave</h2>
+        <div class="theme-grid" id="theme-selector">
+          <button type="button" class="theme-swatch" data-theme="dark">
+            <span class="swatch swatch-dark"></span><span data-i18n="themeDark">Donker</span>
+          </button>
+          <button type="button" class="theme-swatch" data-theme="light">
+            <span class="swatch swatch-light"></span><span data-i18n="themeLight">Licht</span>
+          </button>
+          <button type="button" class="theme-swatch" data-theme="midnight">
+            <span class="swatch swatch-midnight"></span><span data-i18n="themeMidnight">Middernacht</span>
+          </button>
+          <button type="button" class="theme-swatch" data-theme="paper">
+            <span class="swatch swatch-paper"></span><span data-i18n="themePaper">Papier</span>
+          </button>
+        </div>
+        <label class="settings-row">
+          <span data-i18n="language">Taal</span>
+          <select id="select-language" class="form-select">
+            <option value="nl">Nederlands</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="storage">Opslag</h2>
+        <div id="storage-info" class="storage-info"></div>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="about">Over</h2>
+        <p class="about-text" data-i18n="aboutText">Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== Bottom tab bar ===== -->
+  <nav class="tabbar">
+    <button class="tab-btn active" data-view="list" data-i18n-aria="tabList">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h16v2H4z"/></svg>
+      <span data-i18n="tabList">Lijst</span>
+    </button>
+    <button class="tab-btn" data-view="grid" data-i18n-aria="tabPhotos">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg>
+      <span data-i18n="tabPhotos">Foto's</span>
+    </button>
+    <button class="tab-btn add-btn" data-view="add" data-i18n-aria="tabAdd">
+      <svg viewBox="0 0 24 24" class="icon icon-large"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+    </button>
+    <button class="tab-btn" data-view="settings" data-i18n-aria="tabSettings">
+      <svg viewBox="0 0 24 24" class="icon"><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm8.94 4a7.93 7.93 0 00-.14-1.5l2.05-1.6-2-3.46-2.42.97a8.07 8.07 0 00-2.6-1.5L15.5 2h-4l-.33 2.6a8.07 8.07 0 00-2.6 1.5l-2.42-.97-2 3.46 2.05 1.6c-.09.49-.14 1-.14 1.5s.05 1.01.14 1.5l-2.05 1.6 2 3.46 2.42-.97c.76.66 1.64 1.17 2.6 1.5L11.5 22h4l.33-2.6c.96-.33 1.84-.84 2.6-1.5l2.42.97 2-3.46-2.05-1.6c.09-.49.14-1 .14-1.5z"/></svg>
+      <span data-i18n="tabSettings">Instellingen</span>
+    </button>
+  </nav>
+
+  <!-- ===== Lightbox ===== -->
+  <div id="lightbox" class="lightbox hidden">
+    <button id="lightbox-close" class="lightbox-close" aria-label="Close">&times;</button>
+    <button id="lightbox-prev" class="lightbox-nav lightbox-prev" aria-label="Previous">&larr;</button>
+    <img id="lightbox-img" class="lightbox-img" alt="">
+    <button id="lightbox-next" class="lightbox-nav lightbox-next" aria-label="Next">&rarr;</button>
+  </div>
+
+  <!-- ===== Install hint ===== -->
+  <div id="install-hint" class="install-hint hidden">
+    <p data-i18n="installHint">Installeer Second Memory: tik op Deel en kies 'Zet op beginscherm'.</p>
+    <button id="btn-dismiss-hint" class="icon-btn" aria-label="Dismiss">&times;</button>
+  </div>
+
+  <!-- ===== Toast container ===== -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- ===== Confirm dialog ===== -->
+  <div id="confirm-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box">
+      <p id="confirm-message"></p>
+      <div class="dialog-buttons">
+        <button id="confirm-cancel" class="secondary-btn" data-i18n="cancel">Annuleer</button>
+        <button id="confirm-ok" class="primary-btn danger" data-i18n="confirmOk">Bevestig</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

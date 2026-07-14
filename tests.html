@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Second Memory — merge logic tests</title>
+<style>
+  body { font-family: -apple-system, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background: #111; color: #eee; }
+  h1 { font-size: 20px; }
+  .pass { color: #32d74b; }
+  .fail { color: #ff453a; }
+  .case { padding: 8px 0; border-bottom: 1px solid #333; }
+  .summary { font-size: 18px; font-weight: bold; margin-top: 20px; }
+  pre { background: #1c1c1e; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Second Memory — merge logic tests</h1>
+<p>Runs the pure functions in <code>merge.js</code> directly in the browser. No test framework, no build step.</p>
+<div id="results"></div>
+<div id="summary" class="summary"></div>
+
+<script type="module">
+import { resolveRecord, mergeItemSets, computeMediaActions } from "./merge.js";
+
+const results = document.getElementById("results");
+let pass = 0, fail = 0;
+
+function assertEqual(actual, expected, label) {
+  const ok = JSON.stringify(actual) === JSON.stringify(expected);
+  const div = document.createElement("div");
+  div.className = "case";
+  if (ok) {
+    pass++;
+    div.innerHTML = `<span class="pass">PASS</span> — ${label}`;
+  } else {
+    fail++;
+    div.innerHTML = `<span class="fail">FAIL</span> — ${label}<br>
+      <pre>expected: ${JSON.stringify(expected, null, 2)}\nactual:   ${JSON.stringify(actual, null, 2)}</pre>`;
+  }
+  results.appendChild(div);
+}
+
+function item(overrides) {
+  return {
+    id: "a", type: "text", title: "t", comment: "", tags: [],
+    url: null, text: "x", mediaId: null, filename: null, mimeType: null,
+    createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: null,
+    ...overrides,
+  };
+}
+
+// --- resolveRecord ---
+
+assertEqual(resolveRecord(undefined, item()), item(), "resolveRecord: missing local -> remote wins");
+assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing remote -> local wins");
+
+{
+  const older = item({ updatedAt: "2026-01-01T00:00:00.000Z" });
+  const newer = item({ updatedAt: "2026-02-01T00:00:00.000Z", title: "newer" });
+  assertEqual(resolveRecord(older, newer), newer, "resolveRecord: newer updatedAt wins among two live records");
+  assertEqual(resolveRecord(newer, older), newer, "resolveRecord: order-independent");
+}
+
+{
+  // Tombstone wins even though it's OLDER than the live edit — this is
+  // the deliberate product decision: deletes are terminal.
+  const tombstone = item({ updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-01T00:00:00.000Z" });
+  const laterEdit = item({ updatedAt: "2026-06-01T00:00:00.000Z", title: "edited after delete" });
+  assertEqual(resolveRecord(tombstone, laterEdit), tombstone, "resolveRecord: tombstone wins over a LATER live edit");
+  assertEqual(resolveRecord(laterEdit, tombstone), tombstone, "resolveRecord: tombstone wins regardless of argument order");
+}
+
+{
+  const t1 = item({ updatedAt: "2026-01-01T00:00:00.000Z", deletedAt: "2026-01-01T00:00:00.000Z" });
+  const t2 = item({ updatedAt: "2026-02-01T00:00:00.000Z", deletedAt: "2026-02-01T00:00:00.000Z" });
+  assertEqual(resolveRecord(t1, t2), t2, "resolveRecord: between two tombstones, newer updatedAt wins");
+}
+
+// --- mergeItemSets ---
+
+{
+  // First-ever sync: no remote file yet (empty remote array).
+  const local = [item({ id: "a" }), item({ id: "b" })];
+  const { merged, stats } = mergeItemSets(local, []);
+  assertEqual(merged.length, 2, "mergeItemSets: first sync keeps all local items");
+  assertEqual(stats, { added: 0, updated: 0, deleted: 0 }, "mergeItemSets: first sync reports no local-facing changes (nothing new arrived from remote)");
+}
+
+{
+  // Fresh device: empty local DB, remote has everything. This is the restore path.
+  const remote = [item({ id: "a" }), item({ id: "b" })];
+  const { merged, stats } = mergeItemSets([], remote);
+  assertEqual(merged.length, 2, "mergeItemSets: fresh device pulls all remote items");
+  assertEqual(stats, { added: 2, updated: 0, deleted: 0 }, "mergeItemSets: fresh device counts both as added");
+}
+
+{
+  // Ordinary incremental sync: one unchanged, one updated remotely, one new remotely.
+  const local = [
+    item({ id: "a", title: "same" }),
+    item({ id: "b", title: "old", updatedAt: "2026-01-01T00:00:00.000Z" }),
+  ];
+  const remote = [
+    item({ id: "a", title: "same" }),
+    item({ id: "b", title: "new", updatedAt: "2026-02-01T00:00:00.000Z" }),
+    item({ id: "c", title: "brand new" }),
+  ];
+  const { merged, stats } = mergeItemSets(local, remote);
+  assertEqual(merged.length, 3, "mergeItemSets: incremental sync unions all ids");
+  assertEqual(stats, { added: 1, updated: 1, deleted: 0 }, "mergeItemSets: incremental sync counts added+updated correctly");
+}
+
+{
+  // Delete on device A, later edit on device B: tombstone wins, counted as deleted.
+  const local = [item({ id: "a", title: "edited on B", updatedAt: "2026-06-01T00:00:00.000Z" })];
+  const remote = [item({ id: "a", deletedAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" })];
+  const { merged, stats } = mergeItemSets(local, remote);
+  assertEqual(merged[0].deletedAt, "2026-01-01T00:00:00.000Z", "mergeItemSets: tombstone resurrection is prevented");
+  assertEqual(stats, { added: 0, updated: 0, deleted: 1 }, "mergeItemSets: counts as a local deletion");
+}
+
+{
+  // Local-only item (not yet uploaded) must survive the merge untouched.
+  const local = [item({ id: "a" })];
+  const { merged, stats } = mergeItemSets(local, []);
+  assertEqual(merged, local, "mergeItemSets: local-only item passes through unchanged");
+  assertEqual(stats, { added: 0, updated: 0, deleted: 0 }, "mergeItemSets: local-only item is not counted as a local-facing change");
+}
+
+// --- computeMediaActions ---
+
+{
+  const items = [item({ id: "a", mediaId: "m1", filename: "photo.jpg", type: "image" })];
+  const { toUpload, toDownload, toDeleteLocal } = computeMediaActions(items, new Set(["m1"]), new Set());
+  assertEqual(toUpload.map((i) => i.id), ["a"], "computeMediaActions: local-only media queued for upload");
+  assertEqual(toDownload, [], "computeMediaActions: nothing to download");
+  assertEqual(toDeleteLocal, [], "computeMediaActions: nothing to delete locally");
+}
+
+{
+  const items = [item({ id: "a", mediaId: "m1", filename: "photo.jpg", type: "image" })];
+  const { toUpload, toDownload } = computeMediaActions(items, new Set(), new Set(["a__photo.jpg"]));
+  assertEqual(toUpload, [], "computeMediaActions: nothing to upload when remote already has it");
+  assertEqual(toDownload.length, 1, "computeMediaActions: remote-only media queued for download");
+  assertEqual(toDownload[0].remoteName, "a__photo.jpg", "computeMediaActions: download uses correct remote filename");
+}
+
+{
+  const items = [item({ id: "a", mediaId: "m1", filename: "photo.jpg", type: "image", deletedAt: "2026-01-01T00:00:00.000Z" })];
+  const { toUpload, toDownload, toDeleteLocal } = computeMediaActions(items, new Set(["m1"]), new Set(["a__photo.jpg"]));
+  assertEqual(toUpload, [], "computeMediaActions: tombstoned item never uploads media");
+  assertEqual(toDownload, [], "computeMediaActions: tombstoned item never downloads media");
+  assertEqual(toDeleteLocal.map((i) => i.id), ["a"], "computeMediaActions: tombstoned item with local media queued for local delete");
+}
+
+{
+  const items = [item({ id: "a", mediaId: null, type: "link" })];
+  const { toUpload, toDownload, toDeleteLocal } = computeMediaActions(items, new Set(), new Set());
+  assertEqual([toUpload, toDownload, toDeleteLocal], [[], [], []], "computeMediaActions: items without mediaId are ignored");
+}
+
+// --- summary ---
+
+const summary = document.getElementById("summary");
+summary.innerHTML = fail === 0
+  ? `<span class="pass">${pass}/${pass + fail} passed</span>`
+  : `<span class="fail">${fail}/${pass + fail} FAILED</span> (${pass} passed)`;
+</script>
+</body>
+</html>
