@@ -9,7 +9,7 @@
  * dropped on activate.
  */
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `second-memory-shell-${CACHE_VERSION}`;
 
 // Paths are relative to sw.js's own scope, so this works whether the app
@@ -57,8 +57,15 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
   // Network-only for Google APIs — never cache OAuth or Drive traffic.
+  // Deliberately NOT calling event.respondWith() here: Safari/WebKit's
+  // service worker implementation has a bug where re-dispatching the
+  // original event.request via fetch(event.request) can fail with
+  // "TypeError: Load failed" for non-GET requests (seen on the PATCH
+  // that updates items.json on the 2nd+ sync — the 1st sync only ever
+  // does GET/POST, which is why it worked while later syncs didn't).
+  // Simply not intercepting the request avoids the bug entirely and the
+  // browser handles it exactly as if there were no service worker.
   if (GOOGLE_HOSTS.includes(url.hostname)) {
-    event.respondWith(fetch(event.request));
     return;
   }
 

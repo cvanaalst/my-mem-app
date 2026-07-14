@@ -84,7 +84,10 @@ async function pasteUrl() {
     const text = await navigator.clipboard.readText();
     if (text) urlInput.value = text;
   } catch (_) {
-    // Clipboard read denied/unsupported — user can paste manually.
+    // iOS Safari (especially standalone/Home-Screen PWAs) frequently denies
+    // programmatic clipboard reads outright, even from a direct tap. There's
+    // no reliable workaround — tell the user the fallback that always works.
+    toast(t("pasteNotSupported"), "default");
   }
 }
 

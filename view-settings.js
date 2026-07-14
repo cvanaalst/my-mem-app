@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, formatBytes } from "./ui.js";
+import { toast, confirmDialog, alertDialog, formatDate, formatBytes } from "./ui.js";
 import { sync } from "./sync.js";
 
 const { t } = i18n;
@@ -95,7 +95,7 @@ async function runBackup() {
   if (!navigator.onLine) { toast(t("offlineNotice"), "error"); return; }
   try {
     await sync.createBackup();
-    toast(t("backupCreated"), "success");
+    await alertDialog(t("backupCreated"));
   } catch (err) {
     toast(t("syncError", { message: err.message || String(err) }), "error");
   }
@@ -132,8 +132,8 @@ async function chooseRestoreMode(file) {
   const mode = wantsReplace ? "replace" : "merge";
   try {
     await sync.restoreBackup(file.id, mode);
-    toast(t("backupRestored"), "success");
     backupListEl.classList.add("hidden");
+    await alertDialog(t("backupRestored"));
     window.dispatchEvent(new CustomEvent("sm:data-changed"));
   } catch (err) {
     toast(t("syncError", { message: err.message || String(err) }), "error");

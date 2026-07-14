@@ -621,7 +621,7 @@ button, input, textarea, select {
   width: 100%;
   box-shadow: 0 8px 24px var(--shadow);
 }
-.dialog-box p { margin: 0 0 16px; font-size: 15px; }
+.dialog-box p { margin: 0 0 16px; font-size: 15px; white-space: pre-line; }
 .dialog-buttons { display: flex; gap: 10px; }
 .dialog-buttons > * { flex: 1; }
 

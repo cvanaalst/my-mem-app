@@ -37,6 +37,7 @@ const dict = {
     tagsPlaceholder: "tag toevoegen, Enter of komma",
     urlPlaceholder: "https://…",
     paste: "Plakken",
+    pasteNotSupported: "Plakken via de knop lukt hier niet — tik in het veld en houd vast tot 'Plakken' verschijnt.",
     titleRequired: "Titel is verplicht.",
 
     addTitle: "Nieuw item",
@@ -144,6 +145,7 @@ const dict = {
     tagsPlaceholder: "add tag, Enter or comma",
     urlPlaceholder: "https://…",
     paste: "Paste",
+    pasteNotSupported: "Paste via the button isn't available here — tap the field and hold until 'Paste' appears.",
     titleRequired: "Title is required.",
 
     addTitle: "New item",

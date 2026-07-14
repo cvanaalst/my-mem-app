@@ -15,9 +15,11 @@ const loadingEl = document.getElementById("list-loading");
 const loadMoreBtn = document.getElementById("btn-load-more");
 
 let onOpenItem = () => {};
+let onTagClick = () => {};
 
 export function initListView(handlers) {
   onOpenItem = handlers.onOpenItem;
+  onTagClick = handlers.onTagClick || (() => {});
   loadMoreBtn.addEventListener("click", () => loadMore());
 }
 
@@ -92,9 +94,14 @@ function renderCard(item) {
     const tagsRow = document.createElement("div");
     tagsRow.className = "item-card-tags";
     for (const tag of item.tags) {
-      const chip = document.createElement("span");
+      const chip = document.createElement("button");
+      chip.type = "button";
       chip.className = "chip";
       chip.textContent = tag;
+      chip.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onTagClick(tag);
+      });
       tagsRow.appendChild(chip);
     }
     body.appendChild(tagsRow);

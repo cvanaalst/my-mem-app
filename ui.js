@@ -27,6 +27,8 @@ export function confirmDialog(message, okLabel) {
 
   msgEl.textContent = message;
   okBtn.textContent = okLabel || t("confirmOk");
+  okBtn.classList.add("danger");
+  cancelBtn.classList.remove("hidden");
   overlay.classList.remove("hidden");
 
   return new Promise((resolve) => {
@@ -40,6 +42,30 @@ export function confirmDialog(message, okLabel) {
     function onCancel() { cleanup(false); }
     okBtn.addEventListener("click", onOk);
     cancelBtn.addEventListener("click", onCancel);
+  });
+}
+
+/** Same dialog, OK-only — for confirmations the user must actually notice (e.g. backup/restore completion), unlike an auto-dismissing toast. */
+export function alertDialog(message, okLabel) {
+  const overlay = document.getElementById("confirm-dialog");
+  const msgEl = document.getElementById("confirm-message");
+  const okBtn = document.getElementById("confirm-ok");
+  const cancelBtn = document.getElementById("confirm-cancel");
+
+  msgEl.textContent = message;
+  okBtn.textContent = okLabel || t("confirmOk");
+  okBtn.classList.remove("danger");
+  cancelBtn.classList.add("hidden");
+  overlay.classList.remove("hidden");
+
+  return new Promise((resolve) => {
+    function onOk() {
+      overlay.classList.add("hidden");
+      cancelBtn.classList.remove("hidden");
+      okBtn.removeEventListener("click", onOk);
+      resolve();
+    }
+    okBtn.addEventListener("click", onOk);
   });
 }
 

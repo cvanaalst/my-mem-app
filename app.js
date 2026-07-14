@@ -111,6 +111,16 @@ btnClearFilters.addEventListener("click", () => {
   refreshCurrentView();
 });
 
+async function activateTagFilter(tag) {
+  searchbar.classList.remove("hidden");
+  filterPanel.classList.remove("hidden");
+  if (!state.filters.tags.includes(tag)) {
+    state.filters.tags = [...state.filters.tags, tag];
+  }
+  await renderFilterChips();
+  await refreshCurrentView();
+}
+
 const TYPES = ["link", "text", "image", "file"];
 
 async function renderFilterChips() {
@@ -236,7 +246,7 @@ async function boot() {
   state.lang = i18n.getLang();
   i18n.applyTranslations();
 
-  initListView({ onOpenItem: goDetail });
+  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter });
   initGridView({ onOpenItem: goDetail });
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView });
   initAddView({ onSaved: goList, onCancel: backFromDetailOrAdd });
