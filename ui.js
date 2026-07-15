@@ -8,13 +8,45 @@ const { t } = i18n;
 
 /* ------------------------------------------------------------------ toast */
 
-export function toast(message, kind = "default") {
+/**
+ * Shows a toast. Plain call signature unchanged: toast(message, kind).
+ * Pass options.actionLabel + options.onAction for an inline action
+ * button (e.g. "Undo") — the toast then stays up longer (5s by default)
+ * to give time to tap it. options.onExpire fires if the toast times out
+ * WITHOUT the action being taken (not at all if it was), letting a
+ * caller finalize something irreversible only once undo is off the table.
+ */
+export function toast(message, kind = "default", options = {}) {
+  const { actionLabel, onAction, onExpire, duration } = options;
   const container = document.getElementById("toast-container");
   const el = document.createElement("div");
   el.className = `toast${kind !== "default" ? ` ${kind}` : ""}`;
-  el.textContent = message;
+
+  const msgSpan = document.createElement("span");
+  msgSpan.textContent = message;
+  el.appendChild(msgSpan);
+
+  let timer = null;
+  const dismiss = (expired) => {
+    clearTimeout(timer);
+    el.remove();
+    if (expired && onExpire) onExpire();
+  };
+
+  if (actionLabel && onAction) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "toast-action";
+    btn.textContent = actionLabel;
+    btn.addEventListener("click", () => {
+      dismiss(false);
+      onAction();
+    });
+    el.appendChild(btn);
+  }
+
   container.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  timer = setTimeout(() => dismiss(true), duration || (actionLabel ? 5000 : 2600));
 }
 
 /* ------------------------------------------------------------------- open */
@@ -233,4 +265,22 @@ export function typeIconSvg(type) {
     file: '<path d="M6 2h9l5 5v15a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1zm8 1.5V8h4.5L14 3.5z"/>',
   };
   return icons[type] || icons.file;
+}
+
+/**
+ * Grows a textarea's height to fit its content instead of scrolling —
+ * used for the comment field, which can now hold more than one line.
+ * Call once per element (at view-init time, NOT on every open — same
+ * listener-accumulation trap as the tag input, see setupTagInput).
+ * Returns { resize() } so callers can re-fit it after setting .value
+ * programmatically, which doesn't fire an input event on its own.
+ */
+export function autoGrowTextarea(el) {
+  const resize = () => {
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  el.addEventListener("input", resize);
+  resize();
+  return { resize };
 }

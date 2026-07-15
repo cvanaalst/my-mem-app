@@ -4,7 +4,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, setupTagInput, openInNewTab } from "./ui.js";
+import { toast, confirmDialog, setupTagInput, openInNewTab, autoGrowTextarea } from "./ui.js";
 
 const { t } = i18n;
 
@@ -34,6 +34,7 @@ const fileInput = document.getElementById("add-file-input");
 const filePreview = document.getElementById("add-file-preview");
 
 let tagWidget = null;
+let commentGrow = null;
 let onSaved = () => {};
 let onCancel = () => {};
 let pinned = false;
@@ -41,6 +42,8 @@ let pinned = false;
 export function initAddView(handlers) {
   onSaved = handlers.onSaved;
   onCancel = handlers.onCancel;
+
+  commentGrow = autoGrowTextarea(commentInput);
 
   // Created once, here — NOT inside openAdd(), which runs on every visit
   // to this view. setupTagInput() attaches keydown/blur listeners to the
@@ -79,7 +82,7 @@ export function initAddView(handlers) {
  */
 export async function openAdd(prefill = null) {
   resetForm();
-  const allTags = (await db.getAllTags()).map((x) => x.tag);
+  const allTags = (await db.getRecentTags()).map((x) => x.tag);
   tagWidget.setTags(prefill?.tags || []);
   tagWidget.renderSuggestions(allTags);
   tagsInput.oninput = () => tagWidget.renderSuggestions(allTags);
@@ -89,12 +92,13 @@ export async function openAdd(prefill = null) {
     if (prefill.url) urlInput.value = prefill.url;
     if (prefill.text) textInput.value = prefill.text;
     if (prefill.title) titleInput.value = prefill.title;
-    if (prefill.comment) commentInput.value = prefill.comment;
+    if (prefill.comment) { commentInput.value = prefill.comment; commentGrow.resize(); }
   }
 }
 
 function resetForm() {
   form.reset();
+  commentGrow.resize();
   imagePreview.classList.add("hidden");
   imagePreview.innerHTML = "";
   filePreview.classList.add("hidden");

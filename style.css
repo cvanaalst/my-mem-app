@@ -372,6 +372,7 @@ button, input, textarea, select {
   padding-bottom: 8px;
 }
 .detail-header-title { font-size: 16px; font-weight: 600; }
+.detail-header-actions { display: flex; align-items: center; gap: 4px; }
 
 .detail-media {
   width: 100%;
@@ -407,6 +408,7 @@ button, input, textarea, select {
 }
 .form-input:focus { outline: none; border-color: var(--accent); }
 .form-textarea { resize: vertical; min-height: 100px; font-family: inherit; }
+.comment-textarea { resize: none; overflow: hidden; min-height: 40px; font-family: inherit; }
 
 .form-select {
   background: var(--bg-input);
@@ -626,9 +628,23 @@ button, input, textarea, select {
   font-size: 14px;
   box-shadow: 0 4px 12px var(--shadow);
   animation: toast-in 0.2s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
 }
 .toast.error { color: var(--danger); }
 .toast.success { color: var(--success); }
+.toast-action {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+}
 @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* ---- Confirm dialog ---- */
@@ -664,4 +680,24 @@ button, input, textarea, select {
 @media (min-width: 1000px) {
   .app { max-width: 1000px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
   .content { max-width: 720px; }
+}
+
+/* ---- Print (Detail view only — the Print button only appears there) ---- */
+@media print {
+  .topbar, .searchbar, .tabbar, .toast-container, .install-hint,
+  .lightbox, .dialog-overlay,
+  .detail-header, .button-row,
+  #btn-detail-open-url, #btn-detail-open-text, #btn-detail-open-media,
+  #detail-tags-input, #detail-tags-suggestions, .chip-remove,
+  #view-list, #view-grid, #view-add, #view-settings {
+    display: none !important;
+  }
+  body, .app, .content { background: #fff; color: #000; height: auto; overflow: visible; }
+  .app { max-width: none; border: none; }
+  .content { max-width: none; padding: 0; }
+  .form-input, .form-textarea { border: none; padding: 0; background: none; color: #000; }
+  .form-label { color: #555; }
+  .chip { background: #eee; color: #000; }
+  .detail-media { max-height: none; background: none; }
+  .detail-media img { max-height: 500px; }
 }

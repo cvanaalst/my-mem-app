@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea } from "./ui.js";
 
 const { t } = i18n;
 
@@ -31,8 +31,10 @@ const btnBack = document.getElementById("btn-detail-back");
 const btnDelete = document.getElementById("btn-detail-delete");
 const btnShare = document.getElementById("btn-detail-share");
 const btnPin = document.getElementById("btn-detail-pin");
+const btnPrint = document.getElementById("btn-detail-print");
 
 let tagWidget = null;
+let commentGrow = null;
 let currentItem = null;
 let currentAllTags = [];
 let pinned = false;
@@ -55,9 +57,11 @@ export function initDetailView(handlers) {
   // listeners instead of adding new ones.
   tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
   tagsInput.addEventListener("input", () => tagWidget.renderSuggestions(currentAllTags));
+  commentGrow = autoGrowTextarea(commentInput);
 
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
+  btnPrint.addEventListener("click", () => window.print());
   btnShare.addEventListener("click", handleShare);
   btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
   btnOpenUrl.addEventListener("click", () => {
@@ -85,6 +89,7 @@ export async function openDetail(id) {
 
   titleInput.value = item.title || "";
   commentInput.value = item.comment || "";
+  commentGrow.resize();
   reminderInput.value = item.reminderAt || "";
   pinned = !!item.pinned;
   renderPin();
@@ -121,7 +126,7 @@ export async function openDetail(id) {
   }
 
   tagWidget.setTags(item.tags || []);
-  currentAllTags = (await db.getAllTags()).map((x) => x.tag);
+  currentAllTags = (await db.getRecentTags()).map((x) => x.tag);
   tagWidget.renderSuggestions(currentAllTags);
 }
 
@@ -156,17 +161,25 @@ async function handleSave(e) {
 }
 
 async function handleDelete() {
-  const ok = await confirmDialog(t("confirmDeleteMessage"), t("delete"));
-  if (!ok) return;
-
-  const tombstoned = { ...currentItem, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const item = currentItem;
+  const tombstoned = { ...item, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   await db.putItem(tombstoned);
-  if (currentItem.mediaId) {
-    await db.deleteMedia(currentItem.mediaId);
-  }
-  toast(t("itemDeleted"), "success");
   onChanged();
   onClose();
+
+  // Media isn't purged here — only once the undo window actually expires
+  // (see onExpire below). Deleting it immediately would make "Undo"
+  // restore the item record but leave its image/file gone for good.
+  toast(t("itemDeleted"), "success", {
+    actionLabel: t("undo"),
+    onAction: async () => {
+      await db.putItem({ ...tombstoned, deletedAt: null, updatedAt: new Date().toISOString() });
+      onChanged();
+    },
+    onExpire: async () => {
+      if (item.mediaId) await db.deleteMedia(item.mediaId);
+    },
+  });
 }
 
 async function handleOpenMedia() {

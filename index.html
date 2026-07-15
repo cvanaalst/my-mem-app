@@ -96,9 +96,14 @@
     <section id="view-detail" class="view hidden">
       <div class="detail-header">
         <button id="btn-detail-back" class="text-btn" data-i18n="back">Terug</button>
-        <button type="button" id="btn-detail-pin" class="icon-btn pin-toggle" data-i18n-aria="pinItem">
-          <svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>
-        </button>
+        <div class="detail-header-actions">
+          <button type="button" id="btn-detail-pin" class="icon-btn pin-toggle" data-i18n-aria="pinItem">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>
+          </button>
+          <button type="button" id="btn-detail-print" class="icon-btn" data-i18n-aria="print">
+            <svg viewBox="0 0 24 24" class="icon"><path d="M19 8H5a3 3 0 00-3 3v5h4v4h12v-4h4v-5a3 3 0 00-3-3zm-3 11H8v-5h8v5zm3-7a1 1 0 110-2 1 1 0 010 2zm-1-9H6v4h12V3z"/></svg>
+          </button>
+        </div>
         <button id="btn-detail-delete" class="text-btn danger" data-i18n="delete">Verwijder</button>
       </div>
       <div id="detail-media" class="detail-media hidden"></div>
@@ -130,7 +135,7 @@
         </div>
 
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
-        <input id="detail-comment" class="form-input" type="text">
+        <textarea id="detail-comment" class="form-input comment-textarea" rows="2"></textarea>
 
         <label class="form-label" data-i18n="fieldReminder">Herinnering (optioneel)</label>
         <input id="detail-reminder" class="form-input" type="date">
@@ -201,7 +206,7 @@
         <input id="add-title" class="form-input" type="text" required>
 
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
-        <input id="add-comment" class="form-input" type="text">
+        <textarea id="add-comment" class="form-input comment-textarea" rows="2"></textarea>
 
         <label class="form-label" data-i18n="fieldReminder">Herinnering (optioneel)</label>
         <input id="add-reminder" class="form-input" type="date">

@@ -181,7 +181,7 @@ function sortItems(items, sortBy, sortDir) {
   return [...orderGroup(pinned), ...orderGroup(unpinned)];
 }
 
-/** Distinct tags across all live items, with counts, alphabetical. */
+/** Distinct tags across all live items, with counts, alphabetical — used by the filter panel, where alphabetical is easiest to scan. */
 async function getAllTags() {
   const all = await getAllItems();
   const counts = new Map();
@@ -194,6 +194,41 @@ async function getAllTags() {
   return Array.from(counts.entries())
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => a.tag.localeCompare(b.tag));
+}
+
+/**
+ * Pure: sorts tag usage stats by recency of last use (max createdAt among
+ * items carrying the tag) first, then by how often it's used, then
+ * alphabetically. Kept separate from getRecentTags() so it's directly
+ * unit-testable without touching IndexedDB (see tests.html).
+ */
+function sortTagsByRecency(tagStats) {
+  return [...tagStats].sort((a, b) => {
+    if (a.lastUsed !== b.lastUsed) return b.lastUsed.localeCompare(a.lastUsed);
+    if (a.count !== b.count) return b.count - a.count;
+    return a.tag.localeCompare(b.tag);
+  });
+}
+
+/**
+ * Distinct tags across all live items, ordered by most-recently-used
+ * first — for the tag suggestion chips while typing, where "the tag I
+ * used yesterday" is a better bet than "the tag I've used 50 times
+ * total but not since January."
+ */
+async function getRecentTags() {
+  const all = await getAllItems();
+  const info = new Map();
+  for (const item of all) {
+    if (item.deletedAt) continue;
+    for (const tag of item.tags || []) {
+      const entry = info.get(tag) || { tag, count: 0, lastUsed: "" };
+      entry.count += 1;
+      if ((item.createdAt || "") > entry.lastUsed) entry.lastUsed = item.createdAt || "";
+      info.set(tag, entry);
+    }
+  }
+  return sortTagsByRecency(Array.from(info.values()));
 }
 
 function normalizeSearchText(str) {
@@ -329,6 +364,8 @@ export const db = {
   queryItems,
   getImageItems,
   getAllTags,
+  getRecentTags,
+  sortTagsByRecency,
   putMedia,
   getMedia,
   deleteMedia,

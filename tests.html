@@ -14,13 +14,14 @@
 </style>
 </head>
 <body>
-<h1>Second Memory — merge logic tests</h1>
-<p>Runs the pure functions in <code>merge.js</code> directly in the browser. No test framework, no build step.</p>
+<h1>Second Memory — unit tests</h1>
+<p>Runs the pure functions in <code>merge.js</code> and <code>db.js</code> directly in the browser. No test framework, no build step.</p>
 <div id="results"></div>
 <div id="summary" class="summary"></div>
 
 <script type="module">
 import { resolveRecord, mergeItemSets, computeMediaActions } from "./merge.js";
+import { db } from "./db.js";
 
 const results = document.getElementById("results");
 let pass = 0, fail = 0;
@@ -157,6 +158,45 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   const items = [item({ id: "a", mediaId: null, type: "link" })];
   const { toUpload, toDownload, toDeleteLocal } = computeMediaActions(items, new Set(), new Set());
   assertEqual([toUpload, toDownload, toDeleteLocal], [[], [], []], "computeMediaActions: items without mediaId are ignored");
+}
+
+// --- db.sortTagsByRecency (tag suggestion ordering) ---
+
+{
+  const stats = [
+    { tag: "old", count: 5, lastUsed: "2026-01-01T00:00:00.000Z" },
+    { tag: "new", count: 1, lastUsed: "2026-06-01T00:00:00.000Z" },
+  ];
+  const sorted = db.sortTagsByRecency(stats).map((s) => s.tag);
+  assertEqual(sorted, ["new", "old"], "sortTagsByRecency: more recently used tag comes first, even with a lower count");
+}
+
+{
+  const stats = [
+    { tag: "rare", count: 1, lastUsed: "2026-03-01T00:00:00.000Z" },
+    { tag: "frequent", count: 9, lastUsed: "2026-03-01T00:00:00.000Z" },
+  ];
+  const sorted = db.sortTagsByRecency(stats).map((s) => s.tag);
+  assertEqual(sorted, ["frequent", "rare"], "sortTagsByRecency: equal recency falls back to higher count first");
+}
+
+{
+  const stats = [
+    { tag: "zebra", count: 2, lastUsed: "2026-03-01T00:00:00.000Z" },
+    { tag: "apple", count: 2, lastUsed: "2026-03-01T00:00:00.000Z" },
+  ];
+  const sorted = db.sortTagsByRecency(stats).map((s) => s.tag);
+  assertEqual(sorted, ["apple", "zebra"], "sortTagsByRecency: equal recency and count falls back to alphabetical");
+}
+
+{
+  const original = [
+    { tag: "b", count: 1, lastUsed: "2026-01-01T00:00:00.000Z" },
+    { tag: "a", count: 1, lastUsed: "2026-02-01T00:00:00.000Z" },
+  ];
+  const originalCopy = JSON.parse(JSON.stringify(original));
+  db.sortTagsByRecency(original);
+  assertEqual(original, originalCopy, "sortTagsByRecency: does not mutate its input array");
 }
 
 // --- summary ---
