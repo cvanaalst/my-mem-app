@@ -30,11 +30,61 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 
 /* ------------------------------------------------------------- routing */
 
+// "detail" and "add" are reached by pushing forward from list/grid (and
+// popped back via Back/Cancel) — those transitions slide like native iOS
+// navigation. Switching between tab-bar destinations (list/grid/settings)
+// stays instant, matching how iOS tab bars behave (no slide between tabs).
+const PUSH_TARGETS = new Set(["detail", "add"]);
+
 function showView(name) {
-  Object.entries(views).forEach(([key, el]) => el.classList.toggle("hidden", key !== name));
+  const prevName = appEl.dataset.view;
   appEl.dataset.view = name;
   tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
+
+  const fromEl = views[prevName];
+  const toEl = views[name];
+  const isForward = PUSH_TARGETS.has(name) && !PUSH_TARGETS.has(prevName);
+  const isBackward = PUSH_TARGETS.has(prevName) && !PUSH_TARGETS.has(name);
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (!fromEl || fromEl === toEl || reduceMotion || (!isForward && !isBackward)) {
+    Object.entries(views).forEach(([key, el]) => el.classList.toggle("hidden", key !== name));
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  animateViewSwap(fromEl, toEl, isForward);
   window.scrollTo(0, 0);
+}
+
+function animateViewSwap(fromEl, toEl, isForward) {
+  toEl.classList.remove("hidden");
+  fromEl.classList.add("view-anim");
+  toEl.classList.add("view-anim", isForward ? "view-from-right" : "view-from-left");
+
+  // Force a reflow so the browser commits the "from" transform before we
+  // switch to the settled state — otherwise both changes get batched into
+  // one frame and there's nothing to animate.
+  void toEl.offsetWidth;
+
+  let done = false;
+  const cleanup = () => {
+    if (done) return;
+    done = true;
+    fromEl.classList.add("hidden");
+    fromEl.classList.remove("view-anim", "view-to-left", "view-to-right");
+    toEl.classList.remove("view-anim", "view-settled");
+    toEl.removeEventListener("transitionend", cleanup);
+  };
+
+  requestAnimationFrame(() => {
+    toEl.classList.remove("view-from-right", "view-from-left");
+    toEl.classList.add("view-settled");
+    fromEl.classList.add(isForward ? "view-to-left" : "view-to-right");
+  });
+
+  toEl.addEventListener("transitionend", cleanup, { once: true });
+  setTimeout(cleanup, 400); // safety net in case transitionend never fires
 }
 
 async function goList() { showView("list"); await resetAndLoadList(); }
@@ -163,6 +213,30 @@ async function togglePin(id, pinned) {
   await refreshCurrentView();
 }
 
+/**
+ * Shared delete-with-undo path — used by both the Detail view's Delete
+ * button and swipe-to-delete on list cards, so there's exactly one place
+ * that implements "tombstone now, purge media only if undo isn't used."
+ * Deferring the media purge is what makes Undo actually restore the
+ * item's image/file instead of leaving it gone.
+ */
+async function deleteItemWithUndo(item) {
+  const tombstoned = { ...item, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  await db.putItem(tombstoned);
+  await refreshCurrentView();
+
+  toast(t("itemDeleted"), "success", {
+    actionLabel: t("undo"),
+    onAction: async () => {
+      await db.putItem({ ...tombstoned, deletedAt: null, updatedAt: new Date().toISOString() });
+      await refreshCurrentView();
+    },
+    onExpire: async () => {
+      if (item.mediaId) await db.deleteMedia(item.mediaId);
+    },
+  });
+}
+
 const TYPES = ["link", "text", "image", "file"];
 
 async function renderFilterChips() {
@@ -216,6 +290,12 @@ async function setLanguage(lang) {
   state.lang = i18n.getLang();
   await db.setMeta("language", state.lang);
   i18n.applyTranslations();
+  await refreshCurrentView();
+}
+
+async function setListDensity(density) {
+  state.listDensity = density === "compact" ? "compact" : "comfortable";
+  await db.setMeta("listDensity", state.listDensity);
   await refreshCurrentView();
 }
 
@@ -325,16 +405,18 @@ async function boot() {
 
   const savedTheme = await db.getMeta("theme", "dark");
   const savedLang = await db.getMeta("language", "nl");
+  const savedDensity = await db.getMeta("listDensity", "comfortable");
   await setTheme(savedTheme);
   i18n.setLang(savedLang);
   state.lang = i18n.getLang();
+  state.listDensity = savedDensity === "compact" ? "compact" : "comfortable";
   i18n.applyTranslations();
 
-  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin });
+  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin, onSwipeDelete: deleteItemWithUndo });
   initGridView({ onOpenItem: goDetail });
-  initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView });
+  initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView, onDelete: deleteItemWithUndo });
   initAddView({ onSaved: goList, onCancel: backFromDetailOrAdd });
-  initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage });
+  initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
 
   window.addEventListener("sm:data-changed", refreshCurrentView);
 

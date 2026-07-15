@@ -40,9 +40,11 @@ let currentAllTags = [];
 let pinned = false;
 let onClose = () => {};
 let onChanged = () => {};
+let onDelete = async () => {};
 
 export function initDetailView(handlers) {
   onClose = handlers.onClose;
+  onDelete = handlers.onDelete;
   onChanged = handlers.onChanged;
 
   // Created once, here — NOT inside openDetail(), which runs every time a
@@ -162,24 +164,8 @@ async function handleSave(e) {
 
 async function handleDelete() {
   const item = currentItem;
-  const tombstoned = { ...item, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-  await db.putItem(tombstoned);
-  onChanged();
   onClose();
-
-  // Media isn't purged here — only once the undo window actually expires
-  // (see onExpire below). Deleting it immediately would make "Undo"
-  // restore the item record but leave its image/file gone for good.
-  toast(t("itemDeleted"), "success", {
-    actionLabel: t("undo"),
-    onAction: async () => {
-      await db.putItem({ ...tombstoned, deletedAt: null, updatedAt: new Date().toISOString() });
-      onChanged();
-    },
-    onExpire: async () => {
-      if (item.mediaId) await db.deleteMedia(item.mediaId);
-    },
-  });
+  await onDelete(item);
 }
 
 async function handleOpenMedia() {

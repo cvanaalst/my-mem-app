@@ -155,9 +155,24 @@ button, input, textarea, select {
   padding: 0 16px calc(16px + var(--safe-bottom));
   padding-left: calc(16px + var(--safe-left));
   padding-right: calc(16px + var(--safe-right));
+  position: relative;
 }
 
 .view { padding-top: 12px; }
+
+/* ---- View-transition slide (list/grid <-> detail/add push-pop) ---- */
+.view.view-anim {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.view.view-from-right { transform: translateX(100%); }
+.view.view-from-left { transform: translateX(-100%); }
+.view.view-settled { transform: translateX(0); opacity: 1; }
+.view.view-to-left { transform: translateX(-25%); opacity: 0.6; }
+.view.view-to-right { transform: translateX(100%); }
 
 /* ---- Icon buttons ---- */
 .icon-btn {
@@ -171,7 +186,8 @@ button, input, textarea, select {
   cursor: pointer;
   color: var(--text);
 }
-.icon-btn:active { background: var(--chip-bg); }
+.icon-btn { transition: transform 0.1s ease, background 0.1s ease; }
+.icon-btn:active { background: var(--chip-bg); transform: scale(0.92); }
 
 .icon { width: 22px; height: 22px; fill: currentColor; }
 .icon-large { width: 30px; height: 30px; }
@@ -227,7 +243,9 @@ button, input, textarea, select {
   font-size: 13px;
   cursor: pointer;
   white-space: nowrap;
+  transition: transform 0.1s ease;
 }
+.chip:active { transform: scale(0.94); }
 .chip.active { background: var(--accent); color: var(--accent-text); }
 .chip.removable { display: flex; align-items: center; gap: 4px; }
 .chip .chip-remove { font-weight: 700; opacity: 0.7; }
@@ -239,7 +257,9 @@ button, input, textarea, select {
   font-size: 16px;
   cursor: pointer;
   padding: 6px 4px;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
+.text-btn:active { opacity: 0.6; transform: scale(0.96); }
 .text-btn.danger { color: var(--danger); }
 
 /* ---- Item list (cards) ---- */
@@ -253,8 +273,9 @@ button, input, textarea, select {
   padding: 12px;
   box-shadow: 0 1px 2px var(--shadow);
   cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
-.item-card:active { opacity: 0.75; }
+.item-card:active { opacity: 0.75; transform: scale(0.985); }
 
 .item-card-icon {
   flex-shrink: 0;
@@ -290,6 +311,17 @@ button, input, textarea, select {
 }
 .item-card-pin .icon { width: 18px; height: 18px; }
 .item-card-pin.active { color: var(--accent); }
+
+.item-card.compact {
+  padding: 8px 12px;
+  align-items: center;
+  gap: 10px;
+}
+.item-card.compact .item-card-icon { width: 26px; height: 26px; }
+.item-card.compact .item-card-icon .icon { width: 15px; height: 15px; }
+.item-card.compact .item-card-title { font-size: 15px; margin: 0; }
+.item-card.compact .item-card-pin { align-self: center; }
+.item-card.compact .item-card-pin .icon { width: 15px; height: 15px; }
 
 /* ---- Empty / loading states ---- */
 .empty-state, .loading-state {
@@ -464,9 +496,10 @@ button, input, textarea, select {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
 .primary-btn.danger { background: var(--danger); }
-.primary-btn:active { opacity: 0.8; }
+.primary-btn:active { opacity: 0.8; transform: scale(0.97); }
 .full-width { width: 100%; margin-top: 20px; }
 
 .secondary-btn {
@@ -477,8 +510,9 @@ button, input, textarea, select {
   padding: 12px 16px;
   font-size: 16px;
   cursor: pointer;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
-.secondary-btn:active { opacity: 0.8; }
+.secondary-btn:active { opacity: 0.8; transform: scale(0.97); }
 
 /* ---- Type selector (Add view) ---- */
 .type-selector {
@@ -495,7 +529,9 @@ button, input, textarea, select {
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
+  transition: transform 0.1s ease;
 }
+.type-btn:active { transform: scale(0.96); }
 .type-btn.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
 
 .add-type-field { margin-bottom: 4px; }
@@ -551,7 +587,9 @@ button, input, textarea, select {
   cursor: pointer;
   padding: 4px;
   border-radius: var(--radius-sm);
+  transition: transform 0.1s ease;
 }
+.theme-swatch:active { transform: scale(0.94); }
 .theme-swatch.active { color: var(--accent); font-weight: 600; }
 .swatch { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border); display: block; }
 .theme-swatch.active .swatch { border-color: var(--accent); }

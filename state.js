@@ -6,6 +6,7 @@
 export const state = {
   theme: "dark",
   lang: "nl",
+  listDensity: "comfortable", // "comfortable" | "compact"
 
   filters: {
     search: "",

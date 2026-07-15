@@ -22,14 +22,17 @@ const btnExportJson = document.getElementById("btn-export-json");
 const btnExportCsv = document.getElementById("btn-export-csv");
 const themeSelector = document.getElementById("theme-selector");
 const selectLanguage = document.getElementById("select-language");
+const selectDensity = document.getElementById("select-density");
 const storageInfoEl = document.getElementById("storage-info");
 
 let onThemeChange = () => {};
 let onLangChange = () => {};
+let onDensityChange = () => {};
 
 export function initSettingsView(handlers) {
   onThemeChange = handlers.onThemeChange;
   onLangChange = handlers.onLangChange;
+  onDensityChange = handlers.onDensityChange;
 
   btnSyncNow.addEventListener("click", runSync);
   toggleAutosync.addEventListener("change", () => {
@@ -48,6 +51,7 @@ export function initSettingsView(handlers) {
   });
 
   selectLanguage.addEventListener("change", () => onLangChange(selectLanguage.value));
+  selectDensity.addEventListener("change", () => onDensityChange(selectDensity.value));
 
   sync.onStatusChange(renderSyncStatus);
 }
@@ -55,6 +59,7 @@ export function initSettingsView(handlers) {
 export async function refreshSettingsView() {
   toggleAutosync.checked = await db.getMeta("autoSyncOnLaunch", true);
   selectLanguage.value = state.lang;
+  selectDensity.value = state.listDensity;
   highlightTheme(state.theme);
   await renderLastSync();
   await renderStorageInfo();

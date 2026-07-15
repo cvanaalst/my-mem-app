@@ -98,6 +98,9 @@ const dict = {
     themeMidnight: "Middernacht",
     themePaper: "Papier",
     language: "Taal",
+    listDensity: "Lijstweergave",
+    densityComfortable: "Comfortabel",
+    densityCompact: "Compact",
 
     storage: "Opslag",
     storagePersisted: "Opslag is permanent toegewezen door de browser.",
@@ -222,6 +225,9 @@ const dict = {
     themeMidnight: "Midnight",
     themePaper: "Paper",
     language: "Language",
+    listDensity: "List view",
+    densityComfortable: "Comfortable",
+    densityCompact: "Compact",
 
     storage: "Storage",
     storagePersisted: "Storage is persistently granted by the browser.",

@@ -5,5 +5,5 @@
 export const APP_VERSION = {
   designer: "CvA",
   date: "26-07",
-  build: 6,
+  build: 7,
 };
