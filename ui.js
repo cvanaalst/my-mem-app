@@ -39,6 +39,33 @@ export function openBlobInNewTab(blob) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+/**
+ * For blobs that aren't available synchronously (e.g. read from
+ * IndexedDB) — Safari only allows window.open() to succeed when it runs
+ * synchronously inside the click handler; once you `await` anything
+ * first, the "user activation" is gone and the popup is silently
+ * blocked, with no error to catch. Call this immediately in the click
+ * handler to open a blank tab while activation is still live, then call
+ * the returned function once the blob is ready to navigate that tab to
+ * it. (No "noopener" here — that makes window.open() return null, which
+ * would defeat the whole point of keeping a handle to navigate later.)
+ */
+export function openTabForAsyncBlob() {
+  const pending = window.open("", "_blank");
+  return (blob) => {
+    if (!blob) { if (pending) pending.close(); return; }
+    const url = URL.createObjectURL(blob);
+    if (pending && !pending.closed) {
+      pending.location.href = url;
+    } else {
+      // The blank open was blocked too (e.g. popups fully disabled) —
+      // this will likely also be blocked, but it's the best fallback.
+      window.open(url, "_blank", "noopener");
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+}
+
 /* --------------------------------------------------------------- confirm */
 
 export function confirmDialog(message, okLabel) {
@@ -149,7 +176,10 @@ export function setupTagInput(inputEl, chipRowEl, suggestionRowEl, initialTags =
 
   return {
     getTags: () => [...tags],
-    setTags: (newTags) => { tags = [...newTags]; render(); },
+    // Full reset for reusing this widget on a new item/session: also
+    // clears any uncommitted text left in the input (see initAddView /
+    // initDetailView — the widget itself is created once and reused).
+    setTags: (newTags) => { tags = [...newTags]; inputEl.value = ""; render(); },
     renderSuggestions(allTags) {
       if (!suggestionRowEl) return;
       const suggestions = allTags.filter((tg) => !tags.includes(tg)).slice(0, 12);

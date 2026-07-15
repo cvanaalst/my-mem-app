@@ -242,12 +242,28 @@ document.getElementById("btn-dismiss-hint").addEventListener("click", async () =
 /* -------------------------------------------------------------- boot */
 
 async function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    try {
-      await navigator.serviceWorker.register("./sw.js");
-    } catch (err) {
-      console.error("Service worker registration failed:", err);
-    }
+  if (!("serviceWorker" in navigator)) return;
+  try {
+    const registration = await navigator.serviceWorker.register("./sw.js");
+    // Force an immediate check for a newer sw.js instead of waiting for
+    // the browser's own (infrequent, especially on installed iOS PWAs)
+    // background update check.
+    registration.update().catch(() => {});
+
+    // If the SW script itself changes and a new worker takes control
+    // mid-session, reload once so the page picks up the new sw.js logic
+    // right away rather than needing a manual relaunch. This doesn't
+    // affect ordinary app-content updates (html/js/css) — those are
+    // already served fresh on every load via the network-first fetch
+    // strategy in sw.js, with no reload needed.
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  } catch (err) {
+    console.error("Service worker registration failed:", err);
   }
 }
 

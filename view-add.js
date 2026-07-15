@@ -42,6 +42,17 @@ export function initAddView(handlers) {
   onSaved = handlers.onSaved;
   onCancel = handlers.onCancel;
 
+  // Created once, here — NOT inside openAdd(), which runs on every visit
+  // to this view. setupTagInput() attaches keydown/blur listeners to the
+  // (persistent, never-recreated) tags input; calling it again on every
+  // open stacked up duplicate listeners, each holding its own stale copy
+  // of the previous session's tags. That's what caused tags from an
+  // earlier item to silently reappear and made removing a tag look like
+  // it didn't work — a leftover listener would re-render its own old
+  // list right after yours ran. Resetting via tagWidget.setTags() on
+  // each open reuses the same listeners instead of adding new ones.
+  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
+
   typeSelector.addEventListener("click", (e) => {
     const btn = e.target.closest(".type-btn");
     if (!btn) return;
@@ -69,7 +80,7 @@ export function initAddView(handlers) {
 export async function openAdd(prefill = null) {
   resetForm();
   const allTags = (await db.getAllTags()).map((x) => x.tag);
-  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, prefill?.tags || []);
+  tagWidget.setTags(prefill?.tags || []);
   tagWidget.renderSuggestions(allTags);
   tagsInput.oninput = () => tagWidget.renderSuggestions(allTags);
 

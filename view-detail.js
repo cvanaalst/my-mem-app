@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob } from "./ui.js";
 
 const { t } = i18n;
 
@@ -34,6 +34,7 @@ const btnPin = document.getElementById("btn-detail-pin");
 
 let tagWidget = null;
 let currentItem = null;
+let currentAllTags = [];
 let pinned = false;
 let onClose = () => {};
 let onChanged = () => {};
@@ -41,6 +42,19 @@ let onChanged = () => {};
 export function initDetailView(handlers) {
   onClose = handlers.onClose;
   onChanged = handlers.onChanged;
+
+  // Created once, here — NOT inside openDetail(), which runs every time a
+  // different item is opened. setupTagInput() attaches keydown/blur
+  // listeners to the (persistent, never-recreated) tags input; calling it
+  // again on every open stacked up duplicate listeners, each holding its
+  // own stale copy of whatever item's tags were being edited at the time.
+  // That's what caused an earlier item's tags to bleed into a new one and
+  // made removing a tag look broken — a leftover listener from a
+  // previous item would re-render its own old list right after yours
+  // ran. Resetting via tagWidget.setTags() on each open reuses the same
+  // listeners instead of adding new ones.
+  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
+  tagsInput.addEventListener("input", () => tagWidget.renderSuggestions(currentAllTags));
 
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
@@ -106,10 +120,9 @@ export async function openDetail(id) {
     btnOpenMedia.classList.add("hidden");
   }
 
-  tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, item.tags || []);
-  const allTags = (await db.getAllTags()).map((x) => x.tag);
-  tagWidget.renderSuggestions(allTags);
-  tagsInput.addEventListener("input", () => tagWidget.renderSuggestions(allTags));
+  tagWidget.setTags(item.tags || []);
+  currentAllTags = (await db.getAllTags()).map((x) => x.tag);
+  tagWidget.renderSuggestions(currentAllTags);
 }
 
 async function handleSave(e) {
@@ -159,9 +172,12 @@ async function handleDelete() {
 async function handleOpenMedia() {
   const item = currentItem;
   if (!item.mediaId) return;
+  // Open the tab synchronously first (see openTabForAsyncBlob) — the
+  // IndexedDB read below is async, and Safari silently blocks
+  // window.open() called after an await with no error to catch.
+  const resolveTab = openTabForAsyncBlob();
   const media = await db.getMedia(item.mediaId);
-  if (!media || !media.blob) return;
-  openBlobInNewTab(media.blob);
+  resolveTab(media?.blob || null);
 }
 
 async function handleShare() {

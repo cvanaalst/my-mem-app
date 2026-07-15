@@ -1,15 +1,28 @@
 /*
  * Second Memory — service worker.
- * Strategy: cache-first for the app shell (precached on install), so the
- * app fully loads and functions offline. Anything to Google APIs (OAuth,
- * Drive) is network-only and never touches the cache — sync must always
- * hit the real network or fail explicitly.
  *
- * Bump CACHE_VERSION whenever any shell file changes; old caches are
- * dropped on activate.
+ * Strategy: NETWORK-FIRST for the app shell. Whenever the device is
+ * online, every request always goes to the network first and the cache
+ * is updated with the fresh response; the cache is only used as a
+ * fallback when the network fetch fails (i.e. genuinely offline).
+ *
+ * This used to be cache-first (serve from cache immediately, only fetch
+ * on a cache miss), which is wrong for an app that's actively being
+ * updated: once a file was cached, it would keep being served forever
+ * regardless of new deployments, with no way to notice a newer version
+ * existed except a fresh service-worker-script byte-compare that iOS
+ * Safari checks only rarely for installed Home-Screen apps. In practice
+ * that meant the only reliable way to pick up a new build was deleting
+ * and reinstalling the PWA. Network-first fixes this: online, you always
+ * get what's actually deployed; offline, you still get the last-seen
+ * version from cache, so the "fully usable offline" requirement holds.
+ *
+ * Bump CACHE_VERSION whenever this file's own logic changes; old caches
+ * are dropped on activate. It does NOT need to change for ordinary app
+ * content updates (html/css/js) — network-first picks those up on its own.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const CACHE_NAME = `second-memory-shell-${CACHE_VERSION}`;
 
 // Paths are relative to sw.js's own scope, so this works whether the app
@@ -60,11 +73,8 @@ self.addEventListener("fetch", (event) => {
   // Deliberately NOT calling event.respondWith() here: Safari/WebKit's
   // service worker implementation has a bug where re-dispatching the
   // original event.request via fetch(event.request) can fail with
-  // "TypeError: Load failed" for non-GET requests (seen on the PATCH
-  // that updates items.json on the 2nd+ sync — the 1st sync only ever
-  // does GET/POST, which is why it worked while later syncs didn't).
-  // Simply not intercepting the request avoids the bug entirely and the
-  // browser handles it exactly as if there were no service worker.
+  // "TypeError: Load failed" for non-GET requests. Simply not
+  // intercepting the request avoids the bug entirely.
   if (GOOGLE_HOSTS.includes(url.hostname)) {
     return;
   }
@@ -75,24 +85,28 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          // Opportunistically cache new same-origin shell files (e.g. icons)
-          if (response.ok) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => {
+    // "no-store" here matters as much as network-first itself: without
+    // it, this fetch() can still be answered by the *browser's own* HTTP
+    // cache for the request, silently handing back stale bytes even
+    // though the service worker logic is correctly going "to the
+    // network" — no server round-trip happens at all in that case.
+    fetch(event.request.url, { cache: "no-store" })
+      .then((response) => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() =>
+        caches.match(event.request).then((cached) => {
+          if (cached) return cached;
           // Offline and not cached: fall back to the app shell for navigations.
           if (event.request.mode === "navigate") {
             return caches.match("./index.html");
           }
           throw new Error("offline and not cached");
-        });
-    })
+        })
+      )
   );
 });
