@@ -6,6 +6,7 @@ import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
 import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea } from "./ui.js";
+import { renderMarkdown } from "./markdown.js";
 
 const { t } = i18n;
 
@@ -19,7 +20,9 @@ const urlInput = document.getElementById("detail-url");
 const btnOpenUrl = document.getElementById("btn-detail-open-url");
 const textField = document.getElementById("detail-text-field");
 const textInput = document.getElementById("detail-text");
+const textRendered = document.getElementById("detail-text-rendered");
 const btnOpenText = document.getElementById("btn-detail-open-text");
+const btnTextMode = document.getElementById("btn-detail-text-mode");
 const commentInput = document.getElementById("detail-comment");
 const reminderInput = document.getElementById("detail-reminder");
 const tagsInput = document.getElementById("detail-tags-input");
@@ -33,11 +36,15 @@ const btnShare = document.getElementById("btn-detail-share");
 const btnPin = document.getElementById("btn-detail-pin");
 const btnPrint = document.getElementById("btn-detail-print");
 
+const PENCIL_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+const EYE_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
+
 let tagWidget = null;
 let commentGrow = null;
 let currentItem = null;
 let currentAllTags = [];
 let pinned = false;
+let textViewMode = "rendered"; // "rendered" | "edit" — text items only
 let onClose = () => {};
 let onChanged = () => {};
 let onDelete = async () => {};
@@ -66,6 +73,10 @@ export function initDetailView(handlers) {
   btnPrint.addEventListener("click", () => window.print());
   btnShare.addEventListener("click", handleShare);
   btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
+  btnTextMode.addEventListener("click", () => {
+    textViewMode = textViewMode === "rendered" ? "edit" : "rendered";
+    renderTextMode();
+  });
   btnOpenUrl.addEventListener("click", () => {
     const url = urlInput.value.trim();
     if (!url) { toast(t("noUrlToOpen"), "default"); return; }
@@ -81,6 +92,27 @@ export function initDetailView(handlers) {
 
 function renderPin() {
   btnPin.classList.toggle("active", pinned);
+}
+
+/**
+ * Text items default to a rendered (read-only) Markdown view; tapping
+ * the pencil switches to the raw textarea for editing, and tapping the
+ * eye switches back — re-rendering from whatever's currently in the
+ * textarea, so live edits show up in the preview immediately.
+ */
+function renderTextMode() {
+  if (textViewMode === "edit") {
+    textRendered.classList.add("hidden");
+    textInput.classList.remove("hidden");
+    btnTextMode.innerHTML = EYE_ICON;
+    btnTextMode.setAttribute("aria-label", t("previewText"));
+  } else {
+    textRendered.innerHTML = renderMarkdown(textInput.value);
+    textRendered.classList.remove("hidden");
+    textInput.classList.add("hidden");
+    btnTextMode.innerHTML = PENCIL_ICON;
+    btnTextMode.setAttribute("aria-label", t("editText"));
+  }
 }
 
 export async function openDetail(id) {
@@ -102,6 +134,10 @@ export async function openDetail(id) {
   textField.classList.toggle("hidden", item.type !== "text");
   urlInput.value = item.type === "link" ? (item.url || "") : "";
   textInput.value = item.type === "text" ? (item.text || "") : "";
+  if (item.type === "text") {
+    textViewMode = "rendered";
+    renderTextMode();
+  }
 
   mediaBox.classList.add("hidden");
   mediaBox.innerHTML = "";

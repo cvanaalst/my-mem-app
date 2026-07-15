@@ -127,10 +127,14 @@
         <div id="detail-text-field" class="hidden">
           <div class="form-label-row">
             <label class="form-label" data-i18n="fieldText">Tekst</label>
-            <button type="button" id="btn-detail-open-text" class="icon-btn field-action-btn" data-i18n-aria="openInMdViewer">
-              <svg viewBox="0 0 24 24" class="icon"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5h5V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-5h-2v5H5V5z"/></svg>
-            </button>
+            <div class="detail-header-actions">
+              <button type="button" id="btn-detail-text-mode" class="icon-btn field-action-btn" data-i18n-aria="toggleTextMode"></button>
+              <button type="button" id="btn-detail-open-text" class="icon-btn field-action-btn" data-i18n-aria="openInMdViewer">
+                <svg viewBox="0 0 24 24" class="icon"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM5 5h5V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-5h-2v5H5V5z"/></svg>
+              </button>
+            </div>
           </div>
+          <div id="detail-text-rendered" class="markdown-rendered hidden"></div>
           <textarea id="detail-text" class="form-input form-textarea" rows="6"></textarea>
         </div>
 
@@ -286,6 +290,11 @@
       </div>
 
       <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="insights">Inzichten</h2>
+        <button type="button" id="btn-view-report" class="secondary-btn full-width" data-i18n="viewStatistics">Bekijk statistieken</button>
+      </div>
+
+      <div class="settings-group">
         <h2 class="settings-heading" data-i18n="storage">Opslag</h2>
         <div id="storage-info" class="storage-info"></div>
       </div>
@@ -294,6 +303,32 @@
         <h2 class="settings-heading" data-i18n="about">Over</h2>
         <p class="about-text" data-i18n="aboutText">Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.</p>
         <p class="version-text" id="version-text"></p>
+      </div>
+    </section>
+
+    <!-- Reporting / statistics view -->
+    <section id="view-report" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-report-back" class="text-btn" data-i18n="back">Terug</button>
+        <span class="detail-header-title" data-i18n="reportTitle">Statistieken</span>
+        <span style="width:60px"></span>
+      </div>
+
+      <div class="report-tiles" id="report-tiles"></div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="reportByType">Per type</h2>
+        <div id="report-type-bars" class="report-bars"></div>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="reportOverTime">Vastgelegd per week</h2>
+        <div id="report-week-chart"></div>
+      </div>
+
+      <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="reportTags">Tags</h2>
+        <div id="report-tag-cloud" class="chip-row"></div>
       </div>
     </section>
 

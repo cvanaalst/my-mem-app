@@ -107,6 +107,17 @@ const dict = {
     storageNotPersisted: "Opslag is niet permanent toegewezen — kan door de browser worden opgeruimd bij ruimtegebrek.",
     storageEstimate: "{used} gebruikt van {quota} beschikbaar",
 
+    insights: "Inzichten",
+    viewStatistics: "Bekijk statistieken",
+    reportTitle: "Statistieken",
+    reportTotal: "Items",
+    reportPinned: "Vastgezet",
+    reportRemindersDue: "Herinneringen verlopen",
+    reportByType: "Per type",
+    reportOverTime: "Vastgelegd per week",
+    reportTags: "Tags",
+    reportNoTags: "Nog geen tags.",
+
     about: "Over",
     aboutText: "Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.",
     versionInfo: "Ontworpen door {designer} — {date}, build {build}",
@@ -126,6 +137,8 @@ const dict = {
     openInMdViewer: "Open in Markdown-viewer",
     openFullSize: "Volledige grootte openen",
     openFile: "Bestand openen",
+    editText: "Bewerken",
+    previewText: "Voorbeeld weergeven",
     noUrlToOpen: "Geen URL om te openen.",
 
     dateCreated: "Aangemaakt: {date}",
@@ -234,6 +247,17 @@ const dict = {
     storageNotPersisted: "Storage is not persistent — the browser may clear it under storage pressure.",
     storageEstimate: "{used} used of {quota} available",
 
+    insights: "Insights",
+    viewStatistics: "View statistics",
+    reportTitle: "Statistics",
+    reportTotal: "Items",
+    reportPinned: "Pinned",
+    reportRemindersDue: "Reminders due",
+    reportByType: "By type",
+    reportOverTime: "Captured per week",
+    reportTags: "Tags",
+    reportNoTags: "No tags yet.",
+
     about: "About",
     aboutText: "Second Memory — your personal, private memory. All data stays on your device and in your own Google Drive.",
     versionInfo: "Designed by {designer} — {date}, build {build}",
@@ -253,6 +277,8 @@ const dict = {
     openInMdViewer: "Open in Markdown viewer",
     openFullSize: "Open full size",
     openFile: "Open file",
+    editText: "Edit",
+    previewText: "Show preview",
     noUrlToOpen: "No URL to open.",
 
     dateCreated: "Created: {date}",

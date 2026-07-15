@@ -22,6 +22,7 @@
 <script type="module">
 import { resolveRecord, mergeItemSets, computeMediaActions } from "./merge.js";
 import { db } from "./db.js";
+import { renderMarkdown } from "./markdown.js";
 
 const results = document.getElementById("results");
 let pass = 0, fail = 0;
@@ -197,6 +198,89 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   const originalCopy = JSON.parse(JSON.stringify(original));
   db.sortTagsByRecency(original);
   assertEqual(original, originalCopy, "sortTagsByRecency: does not mutate its input array");
+}
+
+// --- db.bucketItemsByWeek (reporting chart) ---
+
+{
+  const now = new Date("2026-07-15T12:00:00.000Z"); // a Wednesday
+  const buckets = db.bucketItemsByWeek([], 4, now);
+  assertEqual(buckets.length, 4, "bucketItemsByWeek: returns the requested number of weeks");
+  assertEqual(buckets.every((b) => b.count === 0), true, "bucketItemsByWeek: empty item list gives all-zero counts");
+}
+
+{
+  const now = new Date("2026-07-15T12:00:00.000Z");
+  const items = [
+    { createdAt: "2026-07-14T09:00:00.000Z" }, // this week (Mon before Wed "now")
+    { createdAt: "2026-07-01T09:00:00.000Z" }, // ~2 weeks ago
+    { createdAt: "2026-07-01T18:00:00.000Z" }, // same week as above
+  ];
+  const buckets = db.bucketItemsByWeek(items, 4, now);
+  const total = buckets.reduce((sum, b) => sum + b.count, 0);
+  assertEqual(total, 3, "bucketItemsByWeek: every item lands in exactly one of the returned weeks");
+  assertEqual(buckets[buckets.length - 1].count, 1, "bucketItemsByWeek: most recent item falls in the last (current) bucket");
+}
+
+{
+  const now = new Date("2026-07-15T12:00:00.000Z");
+  const items = [{ createdAt: "2020-01-01T00:00:00.000Z" }]; // long before the 4-week window
+  const buckets = db.bucketItemsByWeek(items, 4, now);
+  const total = buckets.reduce((sum, b) => sum + b.count, 0);
+  assertEqual(total, 0, "bucketItemsByWeek: items older than the window aren't counted anywhere");
+}
+
+// --- markdown.renderMarkdown (Detail view rendering for text items) ---
+
+{
+  assertEqual(renderMarkdown(""), "", "renderMarkdown: empty input renders to empty string");
+}
+
+{
+  assertEqual(renderMarkdown("hello world"), "<p>hello world</p>", "renderMarkdown: plain text becomes a paragraph");
+}
+
+{
+  assertEqual(renderMarkdown("line one\nline two"), "<p>line one<br>line two</p>", "renderMarkdown: single newline within a paragraph becomes <br>");
+}
+
+{
+  assertEqual(renderMarkdown("first\n\nsecond"), "<p>first</p><p>second</p>", "renderMarkdown: blank line separates paragraphs");
+}
+
+{
+  assertEqual(renderMarkdown("# Title"), "<h1>Title</h1>", "renderMarkdown: # renders an h1");
+  assertEqual(renderMarkdown("### Sub"), "<h3>Sub</h3>", "renderMarkdown: ### renders an h3");
+}
+
+{
+  assertEqual(renderMarkdown("**bold** and *italic*"), "<p><strong>bold</strong> and <em>italic</em></p>", "renderMarkdown: bold and italic markers render correctly together");
+}
+
+{
+  assertEqual(renderMarkdown("- one\n- two"), "<ul><li>one</li><li>two</li></ul>", "renderMarkdown: consecutive '- ' lines become a <ul>");
+  assertEqual(renderMarkdown("1. one\n2. two"), "<ol><li>one</li><li>two</li></ol>", "renderMarkdown: consecutive numbered lines become an <ol>");
+}
+
+{
+  assertEqual(renderMarkdown("[Anthropic](https://anthropic.com)"), '<p><a href="https://anthropic.com" target="_blank" rel="noopener">Anthropic</a></p>', "renderMarkdown: [label](url) renders a real link for an https URL");
+}
+
+{
+  // Note: a URL with its own unbalanced parens (e.g. containing a "(")
+  // isn't something this deliberately minimal parser handles — its
+  // [^)]+ capture stops at the first ")", same as most small Markdown
+  // implementations. Kept out of the URL here on purpose; this test is
+  // only about the scheme-safety fallback, not paren-balancing.
+  assertEqual(renderMarkdown("[click me](javascript:alert)"), "<p>click me</p>", "renderMarkdown: unsafe URL schemes fall back to plain text instead of a link");
+}
+
+{
+  assertEqual(renderMarkdown("<scr" + "ipt>hi<\/scr" + "ipt>"), "<p>&lt;script&gt;hi&lt;/script&gt;</p>", "renderMarkdown: raw HTML in the source is escaped, not rendered");
+}
+
+{
+  assertEqual(renderMarkdown('[x](http://a.com"><img src=1 onerror=y>)'), '<p><a href="http://a.com&quot;&gt;&lt;img src=1 onerror=y&gt;" target="_blank" rel="noopener">x</a></p>', "renderMarkdown: quotes/angle-brackets inside a URL can't break out of the href attribute");
 }
 
 // --- summary ---

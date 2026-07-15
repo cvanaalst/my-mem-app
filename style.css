@@ -442,6 +442,27 @@ button, input, textarea, select {
 .form-textarea { resize: vertical; min-height: 100px; font-family: inherit; }
 .comment-textarea { resize: none; overflow: hidden; min-height: 40px; font-family: inherit; }
 
+.markdown-rendered {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  min-height: 100px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.markdown-rendered h1, .markdown-rendered h2, .markdown-rendered h3 { margin: 0.4em 0 0.3em; line-height: 1.3; }
+.markdown-rendered h1:first-child, .markdown-rendered h2:first-child, .markdown-rendered h3:first-child { margin-top: 0; }
+.markdown-rendered h1 { font-size: 1.35em; }
+.markdown-rendered h2 { font-size: 1.18em; }
+.markdown-rendered h3 { font-size: 1.05em; }
+.markdown-rendered p { margin: 0 0 0.6em; }
+.markdown-rendered p:last-child { margin-bottom: 0; }
+.markdown-rendered ul, .markdown-rendered ol { margin: 0 0 0.6em; padding-left: 1.3em; }
+.markdown-rendered a { color: var(--accent); }
+.markdown-rendered strong { font-weight: 700; }
+.markdown-rendered em { font-style: italic; }
+
 .form-select {
   background: var(--bg-input);
   border: 1px solid var(--border);
@@ -601,6 +622,33 @@ button, input, textarea, select {
 .storage-info { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
 .about-text { font-size: 14px; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 .version-text { font-size: 12px; color: var(--text-tertiary); margin: 8px 0 0; }
+
+/* ---- Reporting view ---- */
+.report-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.report-tile {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 1px 2px var(--shadow);
+}
+.report-tile-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+.report-tile-label { font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+.report-bars { display: flex; flex-direction: column; gap: 10px; }
+.report-bar-row { display: flex; align-items: center; gap: 10px; }
+.report-bar-label { flex-shrink: 0; width: 56px; font-size: 13px; color: var(--text-secondary); }
+.report-bar-track { flex: 1; height: 10px; border-radius: 5px; background: var(--chip-bg); overflow: hidden; }
+.report-bar-fill { height: 100%; border-radius: 5px; background: var(--accent); }
+.report-bar-count { flex-shrink: 0; width: 24px; text-align: right; font-size: 13px; color: var(--text-secondary); }
+
+.report-week-svg { width: 100%; height: 90px; }
+.report-week-svg .report-bar { fill: var(--accent); }
+
+.report-empty { font-size: 14px; color: var(--text-secondary); margin: 0; }
 
 /* ---- Tab bar ---- */
 .tabbar {

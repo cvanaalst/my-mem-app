@@ -15,6 +15,7 @@ import { initGridView, resetAndLoadGrid } from "./view-grid.js";
 import { initDetailView, openDetail } from "./view-detail.js";
 import { initAddView, openAdd } from "./view-add.js";
 import { initSettingsView, refreshSettingsView } from "./view-settings.js";
+import { refreshReportView } from "./view-report.js";
 
 const { t } = i18n;
 
@@ -25,6 +26,7 @@ const views = {
   detail: document.getElementById("view-detail"),
   add: document.getElementById("view-add"),
   settings: document.getElementById("view-settings"),
+  report: document.getElementById("view-report"),
 };
 const tabButtons = document.querySelectorAll(".tab-btn");
 
@@ -34,12 +36,42 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 // popped back via Back/Cancel) — those transitions slide like native iOS
 // navigation. Switching between tab-bar destinations (list/grid/settings)
 // stays instant, matching how iOS tab bars behave (no slide between tabs).
-const PUSH_TARGETS = new Set(["detail", "add"]);
+const PUSH_TARGETS = new Set(["detail", "add", "report"]);
+
+const TRANSITION_CLASSES = ["view-anim", "view-from-right", "view-from-left", "view-settled", "view-to-left", "view-to-right"];
+
+function clearTransitionClasses(el) {
+  el.classList.remove(...TRANSITION_CLASSES);
+}
+
+// Bumped on every showView() call so a still-in-flight transition's
+// cleanup (transitionend, or its setTimeout safety net) can detect it's
+// been superseded by a newer navigation and skip touching classes that
+// a later transition now owns. Without this, navigating again before an
+// animation finishes (e.g. tapping Back twice, or the tab bar mid-slide)
+// could leave a view with contradictory leftover classes — a stale
+// "slid off to the right" from an interrupted transition combined with
+// "settled" from the new one, which visually hid a view that was
+// supposed to be the current, fully-visible one.
+let transitionGeneration = 0;
 
 function showView(name) {
   const prevName = appEl.dataset.view;
   appEl.dataset.view = name;
   tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
+
+  // Any view that's neither where we came from nor where we're going
+  // must be a clean, hidden slate. It may be an orphan left mid-animation
+  // by an interrupted earlier transition — e.g. bouncing between
+  // list/detail/add repeatedly without ever passing through a tab that
+  // takes the instant-switch path below, which is otherwise the only
+  // place that swept every view at once.
+  Object.entries(views).forEach(([key, el]) => {
+    if (key !== prevName && key !== name) {
+      clearTransitionClasses(el);
+      el.classList.add("hidden");
+    }
+  });
 
   const fromEl = views[prevName];
   const toEl = views[name];
@@ -47,17 +79,25 @@ function showView(name) {
   const isBackward = PUSH_TARGETS.has(prevName) && !PUSH_TARGETS.has(name);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  transitionGeneration++;
+
   if (!fromEl || fromEl === toEl || reduceMotion || (!isForward && !isBackward)) {
+    // An instant switch can still land while some other view is
+    // mid-animation from an interrupted prior transition — clear all of
+    // them so this can't inherit stale state.
+    Object.values(views).forEach(clearTransitionClasses);
     Object.entries(views).forEach(([key, el]) => el.classList.toggle("hidden", key !== name));
     window.scrollTo(0, 0);
     return;
   }
 
-  animateViewSwap(fromEl, toEl, isForward);
+  animateViewSwap(fromEl, toEl, isForward, transitionGeneration);
   window.scrollTo(0, 0);
 }
 
-function animateViewSwap(fromEl, toEl, isForward) {
+function animateViewSwap(fromEl, toEl, isForward, myGen) {
+  clearTransitionClasses(fromEl);
+  clearTransitionClasses(toEl);
   toEl.classList.remove("hidden");
   fromEl.classList.add("view-anim");
   toEl.classList.add("view-anim", isForward ? "view-from-right" : "view-from-left");
@@ -69,15 +109,16 @@ function animateViewSwap(fromEl, toEl, isForward) {
 
   let done = false;
   const cleanup = () => {
-    if (done) return;
+    if (done || myGen !== transitionGeneration) return;
     done = true;
     fromEl.classList.add("hidden");
-    fromEl.classList.remove("view-anim", "view-to-left", "view-to-right");
-    toEl.classList.remove("view-anim", "view-settled");
+    clearTransitionClasses(fromEl);
+    clearTransitionClasses(toEl);
     toEl.removeEventListener("transitionend", cleanup);
   };
 
   requestAnimationFrame(() => {
+    if (myGen !== transitionGeneration) return; // superseded before this frame ran
     toEl.classList.remove("view-from-right", "view-from-left");
     toEl.classList.add("view-settled");
     fromEl.classList.add(isForward ? "view-to-left" : "view-to-right");
@@ -91,6 +132,7 @@ async function goList() { showView("list"); await resetAndLoadList(); }
 async function goGrid() { showView("grid"); await resetAndLoadGrid(); }
 async function goSettings() { showView("settings"); await refreshSettingsView(); }
 async function goAdd(prefill = null) { showView("add"); await openAdd(prefill); }
+async function goReport() { showView("report"); await refreshReportView(); }
 
 async function goDetail(id) {
   showView("detail");
@@ -102,6 +144,9 @@ function backFromDetailOrAdd() {
   const prev = appEl.dataset.prevTab || "list";
   if (prev === "grid") goGrid(); else goList();
 }
+
+// Reached only from a button inside Settings, so Back always returns there.
+function backFromReport() { goSettings(); }
 
 async function refreshCurrentView() {
   const current = appEl.dataset.view;
@@ -122,6 +167,9 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
   else if (view === "add") goAdd();
   else if (view === "settings") goSettings();
 });
+
+document.getElementById("btn-view-report").addEventListener("click", goReport);
+document.getElementById("btn-report-back").addEventListener("click", backFromReport);
 
 /* ------------------------------------------------------- search/filter */
 

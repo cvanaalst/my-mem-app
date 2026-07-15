@@ -238,6 +238,67 @@ function normalizeSearchText(str) {
     .replace(/[̀-ͯ]/g, ""); // strip diacritics
 }
 
+/* -------------------------------------------------------------- report */
+
+function startOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = (day === 0 ? -6 : 1) - day; // shift back to Monday
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/**
+ * Pure: buckets items into the last `weekCount` weeks (oldest to newest,
+ * Monday-aligned) by createdAt, for the reporting view's chart. `now` is
+ * injectable so this is directly unit-testable (see tests.html) without
+ * depending on the real clock.
+ */
+function bucketItemsByWeek(items, weekCount, now = new Date()) {
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const startOfCurrentWeek = startOfWeek(now);
+  const buckets = [];
+  for (let i = weekCount - 1; i >= 0; i--) {
+    const weekStart = new Date(startOfCurrentWeek.getTime() - i * msPerWeek);
+    buckets.push({ weekStart: weekStart.toISOString().slice(0, 10), count: 0 });
+  }
+  for (const item of items) {
+    if (!item.createdAt) continue;
+    const created = new Date(item.createdAt).getTime();
+    for (const bucket of buckets) {
+      const bStart = new Date(bucket.weekStart).getTime();
+      if (created >= bStart && created < bStart + msPerWeek) {
+        bucket.count++;
+        break;
+      }
+    }
+  }
+  return buckets;
+}
+
+/** Summary stats for the reporting view: counts by type, pinned/reminders-due counts, and a 12-week activity chart. */
+async function getStats() {
+  const all = await getAllItems();
+  const live = all.filter((item) => !item.deletedAt);
+  const byType = { link: 0, text: 0, image: 0, file: 0 };
+  let pinnedCount = 0;
+  let remindersDueCount = 0;
+  const today = new Date().toISOString().slice(0, 10);
+  for (const item of live) {
+    if (byType[item.type] !== undefined) byType[item.type]++;
+    if (item.pinned) pinnedCount++;
+    if (item.reminderAt && item.reminderAt <= today) remindersDueCount++;
+  }
+  return {
+    total: live.length,
+    byType,
+    pinnedCount,
+    remindersDueCount,
+    byWeek: bucketItemsByWeek(live, 12),
+  };
+}
+
 /* ---------------------------------------------------------------- media */
 
 async function putMedia(record) {
@@ -366,6 +427,8 @@ export const db = {
   getAllTags,
   getRecentTags,
   sortTagsByRecency,
+  getStats,
+  bucketItemsByWeek,
   putMedia,
   getMedia,
   deleteMedia,
