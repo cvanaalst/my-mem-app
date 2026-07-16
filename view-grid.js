@@ -3,6 +3,7 @@
  */
 import { db } from "./db.js";
 import { state } from "./state.js";
+import { trapFocus } from "./ui.js";
 
 const gridEl = document.getElementById("grid-items");
 const emptyEl = document.getElementById("grid-empty");
@@ -15,6 +16,7 @@ const lightboxNext = document.getElementById("lightbox-next");
 
 let objectUrls = [];
 let onOpenItem = () => {};
+let releaseLightboxFocus = null;
 
 // Same staleness guard as view-list.js: discards results from a
 // resetAndLoadGrid() call superseded by a newer one before it resolved.
@@ -37,9 +39,9 @@ export function initGridView(handlers) {
     touchStartX = null;
   }, { passive: true });
 
+  // Escape is handled by the lightbox's focus trap (see showLightbox).
   document.addEventListener("keydown", (e) => {
     if (lightbox.classList.contains("hidden")) return;
-    if (e.key === "Escape") closeLightbox();
     if (e.key === "ArrowLeft") showLightbox(state.grid.lightboxIndex - 1);
     if (e.key === "ArrowRight") showLightbox(state.grid.lightboxIndex + 1);
   });
@@ -108,7 +110,11 @@ async function showLightbox(index) {
     lightboxImg.dataset.itemId = item.id;
     lightboxImg.onload = () => URL.revokeObjectURL(url);
   }
+  const wasOpen = !lightbox.classList.contains("hidden");
   lightbox.classList.remove("hidden");
+  // Only trap on the initial open — showLightbox() is also how prev/next
+  // navigate, and re-trapping each time would clobber the saved focus.
+  if (!wasOpen) releaseLightboxFocus = trapFocus(lightbox, closeLightbox);
 }
 
 // Tap the image itself to open the full detail/edit view.
@@ -118,6 +124,7 @@ lightboxImg.addEventListener("click", () => {
 });
 
 function closeLightbox() {
+  if (releaseLightboxFocus) { releaseLightboxFocus(); releaseLightboxFocus = null; }
   lightbox.classList.add("hidden");
   state.grid.lightboxIndex = -1;
 }

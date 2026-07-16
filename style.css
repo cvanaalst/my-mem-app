@@ -146,6 +146,14 @@ button, input, textarea, select {
 
 .hidden { display: none !important; }
 
+/* Keyboard focus ring — :focus-visible only, so it never shows on taps.
+   Without this, keyboard users on desktop got no focus indication at all. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* ---- App shell ----
    The content is a single full-height scroller; the top chrome (title +
    search/filter) and the bottom tab bar are translucent, blurred overlays
@@ -200,20 +208,31 @@ button, input, textarea, select {
 .view { padding-top: 12px; }
 
 /* ---- View-transition slide (list/grid <-> detail/add push-pop) ----
-   `top` matches the content's top padding so the absolutely-positioned
-   animating view lines up with its in-flow settled position (no jump). */
-.view.view-anim {
-  position: absolute;
-  top: var(--chrome-top, 96px);
-  left: 0;
-  right: 0;
-  transition: transform 0.25s ease, opacity 0.25s ease;
+   Driven by the View Transitions API (see showView in app.js). The pinned
+   chrome is captured as its own named element so it stays put while the
+   page content slides underneath it, native-iOS style. */
+.top-chrome { view-transition-name: top-chrome; }
+.tabbar { view-transition-name: tabbar; }
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.28s;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+    animation-fill-mode: both;
+    /* The two snapshots must overlap rather than blend through each other. */
+    mix-blend-mode: normal;
+  }
+  html[data-nav="forward"]::view-transition-old(root) { animation-name: vt-exit-left; }
+  html[data-nav="forward"]::view-transition-new(root) { animation-name: vt-enter-right; }
+  html[data-nav="back"]::view-transition-old(root) { animation-name: vt-exit-right; }
+  html[data-nav="back"]::view-transition-new(root) { animation-name: vt-enter-left; }
 }
-.view.view-from-right { transform: translateX(100%); }
-.view.view-from-left { transform: translateX(-100%); }
-.view.view-settled { transform: translateX(0); opacity: 1; }
-.view.view-to-left { transform: translateX(-25%); opacity: 0.6; }
-.view.view-to-right { transform: translateX(100%); }
+
+@keyframes vt-enter-right { from { transform: translateX(100%); } }
+@keyframes vt-exit-left { to { transform: translateX(-25%); opacity: 0.6; } }
+@keyframes vt-enter-left { from { transform: translateX(-25%); opacity: 0.6; } }
+@keyframes vt-exit-right { to { transform: translateX(100%); } }
 
 /* ---- Icon buttons ---- */
 .icon-btn {
@@ -351,6 +370,20 @@ button, input, textarea, select {
 /* ---- Item list (cards) ---- */
 .item-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; }
 
+/* Staggered card entrance (delay set per-card in view-list.js). Guarded by
+   prefers-reduced-motion; without the query the cards would still be
+   mid-animation (and invisible) for anyone who opted out of motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .item-card.card-enter {
+    animation: card-enter 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+    animation-delay: var(--enter-delay, 0ms);
+  }
+}
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
 .item-card {
   display: flex;
   gap: 12px;
@@ -443,8 +476,8 @@ button, input, textarea, select {
 .item-card.compact .item-card-pin .icon { width: 15px; height: 15px; }
 .item-card.compact .item-card-link-badge .icon { width: 14px; height: 14px; }
 
-/* ---- Empty / loading states ---- */
-.empty-state, .loading-state {
+/* ---- Empty state ---- */
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -468,14 +501,34 @@ button, input, textarea, select {
   opacity: 0.8;
 }
 
-.spinner {
-  width: 28px; height: 28px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+/* ---- Skeleton loader ----
+   Placeholder cards shaped like the real ones, so the list doesn't pop in
+   from nothing. Only rendered when a load is slow enough to notice (see
+   view-list.js) — a skeleton that flashes for 40ms is worse than none. */
+.skeleton-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 12px; }
+.skeleton-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 12px;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+.skeleton-tile { width: 44px; height: 44px; border-radius: var(--radius-sm); flex-shrink: 0; }
+.skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.skeleton-line { height: 10px; border-radius: 5px; }
+.skeleton-line.short { width: 40%; }
+.skeleton-tile, .skeleton-line {
+  background: linear-gradient(90deg, var(--chip-bg) 25%, var(--border) 50%, var(--chip-bg) 75%);
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-tile, .skeleton-line { animation: skeleton-shimmer 1.4s ease-in-out infinite; }
+}
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
 
 .load-more-btn {
   display: block;
@@ -903,6 +956,100 @@ button, input, textarea, select {
 .dialog-box p { margin: 0 0 16px; font-size: 15px; white-space: pre-line; }
 .dialog-buttons { display: flex; gap: 10px; }
 .dialog-buttons > * { flex: 1; }
+
+/* ---- Pull-to-refresh ----
+   Sits just under the glass header and is revealed by the pull gesture
+   (app.js drives --pull, 0..1). z-index below the chrome so it slides out
+   from behind it rather than over it. */
+.pull-indicator {
+  position: absolute;
+  top: var(--chrome-top, 96px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  color: var(--accent);
+  pointer-events: none;
+  opacity: var(--pull, 0);
+  transform: translateY(calc((var(--pull, 0) - 1) * 44px)) scale(calc(0.6 + var(--pull, 0) * 0.4));
+}
+.pull-indicator .icon { width: 24px; height: 24px; }
+.pull-indicator.settling { transition: opacity 0.2s ease, transform 0.2s ease; }
+.pull-indicator.spinning .icon { animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- Quick capture sheet ---- */
+#quick-sheet { align-items: flex-end; padding: 0; }
+.quick-sheet {
+  width: 100%;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 8px 16px calc(16px + var(--safe-bottom));
+  box-shadow: 0 -8px 24px var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .quick-sheet { animation: sheet-rise 0.26s cubic-bezier(0.32, 0.72, 0, 1); }
+}
+@keyframes sheet-rise { from { transform: translateY(100%); } }
+.quick-sheet-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text-tertiary);
+  opacity: 0.5;
+  margin: 4px auto 12px;
+}
+.quick-sheet-title { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0 0 10px; }
+.quick-input { width: 100%; resize: none; font-size: 16px; }
+.quick-sheet-actions { display: flex; gap: 10px; margin-top: 12px; }
+.quick-sheet-actions > * { flex: 1; }
+@media (min-width: 560px) {
+  .quick-sheet { max-width: 480px; margin: 0 auto; border-radius: var(--radius-lg); margin-bottom: 16px; }
+}
+
+/* ---- Card context menu (iOS-style action sheet) ---- */
+#context-menu { align-items: flex-end; padding: 0 12px calc(12px + var(--safe-bottom)); }
+.context-sheet {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: 0 8px 24px var(--shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .context-sheet { animation: sheet-up 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+}
+@keyframes sheet-up { from { transform: translateY(16px); opacity: 0; } }
+.context-sheet-title {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-action {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+  font-size: 16px;
+  color: var(--text);
+  text-align: center;
+  cursor: pointer;
+}
+.context-action:active { background: var(--chip-bg); }
+.context-action.danger { color: var(--danger); }
+.context-action.cancel { border-bottom: none; font-weight: 600; color: var(--accent); }
 
 /* ---- Link picker dialog ---- */
 .link-picker-box { max-width: 420px; display: flex; flex-direction: column; max-height: 80vh; }

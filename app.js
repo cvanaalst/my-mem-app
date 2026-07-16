@@ -7,13 +7,13 @@
 import { db } from "./db.js";
 import { i18n } from "./i18n.js";
 import { state } from "./state.js";
-import { toast, isStandalone } from "./ui.js";
+import { toast, isStandalone, trapFocus } from "./ui.js";
 import { icons } from "./icons.js";
 import { sync } from "./sync.js";
 
 import { initListView, resetAndLoadList } from "./view-list.js";
 import { initGridView, resetAndLoadGrid } from "./view-grid.js";
-import { initDetailView, openDetail } from "./view-detail.js";
+import { initDetailView, openDetail, shareItem } from "./view-detail.js";
 import { initAddView, openAdd } from "./view-add.js";
 import { initSettingsView, refreshSettingsView } from "./view-settings.js";
 import { refreshReportView } from "./view-report.js";
@@ -39,100 +39,62 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 // stays instant, matching how iOS tab bars behave (no slide between tabs).
 const PUSH_TARGETS = new Set(["detail", "add", "report"]);
 
-const TRANSITION_CLASSES = ["view-anim", "view-from-right", "view-from-left", "view-settled", "view-to-left", "view-to-right"];
+// Scroll offset per base tab, so returning from a pushed view lands where
+// you left the list — while a freshly-opened detail/add always starts at
+// the top. (All views share one scroll container, so without this a detail
+// would silently inherit the list's scroll position.)
+const scrollPositions = {};
 
-function clearTransitionClasses(el) {
-  el.classList.remove(...TRANSITION_CLASSES);
-}
-
-// Bumped on every showView() call so a still-in-flight transition's
-// cleanup (transitionend, or its setTimeout safety net) can detect it's
-// been superseded by a newer navigation and skip touching classes that
-// a later transition now owns. Without this, navigating again before an
-// animation finishes (e.g. tapping Back twice, or the tab bar mid-slide)
-// could leave a view with contradictory leftover classes — a stale
-// "slid off to the right" from an interrupted transition combined with
-// "settled" from the new one, which visually hid a view that was
-// supposed to be the current, fully-visible one.
-let transitionGeneration = 0;
-
+/**
+ * Swap views, sliding like native iOS navigation via the View Transitions
+ * API. The browser snapshots the old state, we mutate the DOM, and it
+ * cross-animates to the new one — which replaces the hand-rolled
+ * class/generation-counter machinery this used to need (and the whole
+ * class of stale-class corruption bugs that came with it).
+ *
+ * The pinned chrome gets its own view-transition-name so it's captured
+ * separately and stays put instead of sliding with the content.
+ */
 function showView(name) {
   const prevName = appEl.dataset.view;
-  appEl.dataset.view = name;
-  tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
+  const contentEl = document.querySelector(".content");
+  if (prevName) scrollPositions[prevName] = contentEl.scrollTop;
 
-  // Any view that's neither where we came from nor where we're going
-  // must be a clean, hidden slate. It may be an orphan left mid-animation
-  // by an interrupted earlier transition — e.g. bouncing between
-  // list/detail/add repeatedly without ever passing through a tab that
-  // takes the instant-switch path below, which is otherwise the only
-  // place that swept every view at once.
-  Object.entries(views).forEach(([key, el]) => {
-    if (key !== prevName && key !== name) {
-      clearTransitionClasses(el);
-      el.classList.add("hidden");
-    }
-  });
-
-  const fromEl = views[prevName];
-  const toEl = views[name];
   const isForward = PUSH_TARGETS.has(name) && !PUSH_TARGETS.has(prevName);
   const isBackward = PUSH_TARGETS.has(prevName) && !PUSH_TARGETS.has(name);
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  transitionGeneration++;
-
-  if (!fromEl || fromEl === toEl || reduceMotion || (!isForward && !isBackward)) {
-    // An instant switch can still land while some other view is
-    // mid-animation from an interrupted prior transition — clear all of
-    // them so this can't inherit stale state.
-    Object.values(views).forEach(clearTransitionClasses);
+  const apply = () => {
+    appEl.dataset.view = name;
+    tabButtons.forEach((btn) => btn.classList.toggle("active", btn.dataset.view === name));
     Object.entries(views).forEach(([key, el]) => el.classList.toggle("hidden", key !== name));
-    window.scrollTo(0, 0);
+    // Restoring a base tab's offset can't happen here — its list is
+    // re-rendered right after this, which collapses the scroll height and
+    // clamps whatever we'd set. goList/goGrid restore once their data is in.
+    contentEl.scrollTop = 0;
     renderFilterIndicator();
-    return;
-  }
-
-  animateViewSwap(fromEl, toEl, isForward, transitionGeneration);
-  window.scrollTo(0, 0);
-  renderFilterIndicator();
-}
-
-function animateViewSwap(fromEl, toEl, isForward, myGen) {
-  clearTransitionClasses(fromEl);
-  clearTransitionClasses(toEl);
-  toEl.classList.remove("hidden");
-  fromEl.classList.add("view-anim");
-  toEl.classList.add("view-anim", isForward ? "view-from-right" : "view-from-left");
-
-  // Force a reflow so the browser commits the "from" transform before we
-  // switch to the settled state — otherwise both changes get batched into
-  // one frame and there's nothing to animate.
-  void toEl.offsetWidth;
-
-  let done = false;
-  const cleanup = () => {
-    if (done || myGen !== transitionGeneration) return;
-    done = true;
-    fromEl.classList.add("hidden");
-    clearTransitionClasses(fromEl);
-    clearTransitionClasses(toEl);
-    toEl.removeEventListener("transitionend", cleanup);
   };
 
-  requestAnimationFrame(() => {
-    if (myGen !== transitionGeneration) return; // superseded before this frame ran
-    toEl.classList.remove("view-from-right", "view-from-left");
-    toEl.classList.add("view-settled");
-    fromEl.classList.add(isForward ? "view-to-left" : "view-to-right");
-  });
+  const slide = (isForward || isBackward) && !reduceMotion && typeof document.startViewTransition === "function";
+  if (!slide) { apply(); return; } // instant switch (tab hop, reduced motion, or no VT support)
 
-  toEl.addEventListener("transitionend", cleanup, { once: true });
-  setTimeout(cleanup, 400); // safety net in case transitionend never fires
+  document.documentElement.dataset.nav = isForward ? "forward" : "back";
+  const transition = document.startViewTransition(apply);
+  transition.finished.finally(() => { delete document.documentElement.dataset.nav; });
 }
 
-async function goList() { showView("list"); await resetAndLoadList(); }
-async function goGrid() { showView("grid"); await resetAndLoadGrid(); }
+// The scroll restore lands after the data, so coming back from a detail
+// returns you to your place in the list instead of the top.
+async function goList() {
+  showView("list");
+  await resetAndLoadList();
+  document.querySelector(".content").scrollTop = scrollPositions.list || 0;
+}
+async function goGrid() {
+  showView("grid");
+  await resetAndLoadGrid();
+  document.querySelector(".content").scrollTop = scrollPositions.grid || 0;
+}
 async function goSettings() { showView("settings"); await refreshSettingsView(); }
 
 // The pushed views (detail/add/report) add a browser-history entry so the
@@ -188,7 +150,7 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
   const btn = e.target.closest(".tab-btn");
   if (!btn) return;
   const view = btn.dataset.view;
-  if (view === "add") { goAdd(); return; } // pushes on top of the current base
+  if (view === "add") { openQuickSheet(); return; } // fast path; "Meer opties" opens the full form
   // The three base tabs are one history level: replace (not push) so the
   // top entry always names the tab a pushed view will nest under.
   if (view === "list" || view === "grid") appEl.dataset.prevTab = view;
@@ -343,6 +305,199 @@ async function togglePin(id, pinned) {
   await db.putItem({ ...item, pinned, updatedAt: new Date().toISOString() });
   await refreshCurrentView();
 }
+
+/* -------------------------------------------------------- quick capture */
+
+/**
+ * The + tab opens a lightweight sheet: paste/type one thing, tap Opslaan,
+ * done. A leading http(s) URL is saved as a link (titled from its domain
+ * until you edit it), anything else as a text note titled from its first
+ * line. "Meer opties" hands off to the full Add form with what you typed
+ * already filled in, so nothing is lost by starting here.
+ *
+ * Deliberately no clipboard auto-read: navigator.clipboard.readText() was
+ * tried before in this app and removed for silently failing inside the iOS
+ * PWA (see the paste-button history), so the sheet doesn't depend on it.
+ */
+const quickSheet = document.getElementById("quick-sheet");
+const quickInput = document.getElementById("quick-input");
+const quickSave = document.getElementById("quick-save");
+const quickMore = document.getElementById("quick-more");
+let releaseQuickFocus = null;
+
+function openQuickSheet() {
+  quickInput.value = "";
+  quickSheet.classList.remove("hidden");
+  releaseQuickFocus = trapFocus(quickSheet, closeQuickSheet);
+  quickInput.focus();
+}
+
+function closeQuickSheet() {
+  if (releaseQuickFocus) { releaseQuickFocus(); releaseQuickFocus = null; }
+  quickSheet.classList.add("hidden");
+}
+
+quickSheet.addEventListener("click", (e) => {
+  if (e.target === quickSheet) closeQuickSheet(); // tap the backdrop
+});
+
+/** Parses the sheet's single field into the shape the Add form expects. */
+function parseQuickInput(raw) {
+  const value = raw.trim();
+  if (!value) return null;
+  const isUrl = /^https?:\/\/\S+$/i.test(value);
+  if (isUrl) {
+    let title = value;
+    try { title = new URL(value).hostname.replace(/^www\./, ""); } catch (_) { /* keep raw */ }
+    return { type: "link", url: value, title, text: "", comment: "", tags: [] };
+  }
+  return { type: "text", url: "", text: value, title: value.split("\n")[0].slice(0, 80), comment: "", tags: [] };
+}
+
+quickSave.addEventListener("click", async () => {
+  const prefill = parseQuickInput(quickInput.value);
+  if (!prefill) { quickInput.focus(); return; }
+  const now = new Date().toISOString();
+  await db.putItem({
+    id: db.makeId(),
+    type: prefill.type,
+    title: prefill.title,
+    comment: "",
+    tags: [],
+    pinned: false,
+    reminderAt: null,
+    linkedIds: [],
+    url: prefill.type === "link" ? prefill.url : null,
+    text: prefill.type === "text" ? prefill.text : null,
+    mediaId: null, filename: null, mimeType: null,
+    createdAt: now, updatedAt: now, deletedAt: null,
+  });
+  closeQuickSheet();
+  toast(t("itemSaved"), "success");
+  await refreshCurrentView();
+});
+
+// Hand off to the full form, carrying whatever's been typed so far.
+quickMore.addEventListener("click", () => {
+  const prefill = parseQuickInput(quickInput.value);
+  closeQuickSheet();
+  goAdd(prefill);
+});
+
+/* ---------------------------------------------------- pull-to-refresh */
+
+/**
+ * Pull down at the very top of the list to sync (or just reload when not
+ * signed in). Only arms at scrollTop 0 and only on list/grid, and bails
+ * out the moment the gesture reads as horizontal — so it can't fight the
+ * cards' swipe actions or ordinary scrolling. Resistance is applied so the
+ * indicator trails the finger rather than tracking it 1:1.
+ */
+const pullIndicator = document.getElementById("pull-indicator");
+const PULL_TRIGGER = 70;
+
+function initPullToRefresh() {
+  const contentEl = document.querySelector(".content");
+  let startY = null;
+  let startX = null;
+  let pulling = false;
+  let refreshing = false;
+
+  const setPull = (ratio) => pullIndicator.style.setProperty("--pull", String(ratio));
+  const reset = () => {
+    pullIndicator.classList.add("settling");
+    setPull(0);
+    setTimeout(() => pullIndicator.classList.remove("settling"), 220);
+  };
+
+  contentEl.addEventListener("touchstart", (e) => {
+    const view = appEl.dataset.view;
+    if (refreshing || e.touches.length !== 1 || contentEl.scrollTop > 0) return;
+    if (view !== "list" && view !== "grid") return;
+    startY = e.touches[0].clientY;
+    startX = e.touches[0].clientX;
+    pulling = false;
+  }, { passive: true });
+
+  contentEl.addEventListener("touchmove", (e) => {
+    if (startY === null || refreshing) return;
+    const dy = e.touches[0].clientY - startY;
+    const dx = e.touches[0].clientX - startX;
+    if (!pulling && (dy <= 0 || Math.abs(dx) > Math.abs(dy))) { startY = null; return; }
+    pulling = true;
+    setPull(Math.min(dy / PULL_TRIGGER, 1));
+  }, { passive: true });
+
+  contentEl.addEventListener("touchend", async () => {
+    if (startY === null || !pulling) { startY = null; return; }
+    const triggered = parseFloat(pullIndicator.style.getPropertyValue("--pull") || "0") >= 1;
+    startY = null;
+    pulling = false;
+    if (!triggered) { reset(); return; }
+
+    refreshing = true;
+    pullIndicator.classList.add("spinning");
+    try {
+      if (navigator.onLine && (await sync.isSignedIn())) {
+        await sync.syncNow();
+      }
+      await refreshCurrentView();
+    } catch (_) {
+      // sync failures already surface via onStatusChange's toast
+    } finally {
+      pullIndicator.classList.remove("spinning");
+      refreshing = false;
+      reset();
+    }
+  });
+}
+
+/* ------------------------------------------------------- context menu */
+
+const contextMenu = document.getElementById("context-menu");
+const contextMenuTitle = document.getElementById("context-menu-title");
+const ctxPin = document.getElementById("ctx-pin");
+const ctxShare = document.getElementById("ctx-share");
+const ctxDelete = document.getElementById("ctx-delete");
+const ctxCancel = document.getElementById("ctx-cancel");
+
+let contextItem = null;
+let releaseContextFocus = null;
+
+/** Long-press on a list card: the common actions, without opening it. */
+function openContextMenu(item) {
+  contextItem = item;
+  contextMenuTitle.textContent = item.title;
+  ctxPin.textContent = t(item.pinned ? "unpinItem" : "pinItem");
+  contextMenu.classList.remove("hidden");
+  releaseContextFocus = trapFocus(contextMenu, closeContextMenu);
+}
+
+function closeContextMenu() {
+  if (releaseContextFocus) { releaseContextFocus(); releaseContextFocus = null; }
+  contextMenu.classList.add("hidden");
+  contextItem = null;
+}
+
+contextMenu.addEventListener("click", (e) => {
+  if (e.target === contextMenu) closeContextMenu(); // tap the backdrop
+});
+ctxCancel.addEventListener("click", closeContextMenu);
+ctxPin.addEventListener("click", async () => {
+  const item = contextItem;
+  closeContextMenu();
+  await togglePin(item.id, !item.pinned);
+});
+ctxShare.addEventListener("click", async () => {
+  const item = contextItem;
+  closeContextMenu();
+  await shareItem(item);
+});
+ctxDelete.addEventListener("click", async () => {
+  const item = contextItem;
+  closeContextMenu();
+  await deleteItemWithUndo(item);
+});
 
 /**
  * Shared delete-with-undo path — used by both the Detail view's Delete
@@ -555,12 +710,13 @@ async function boot() {
   i18n.applyTranslations();
   renderDensityToggle();
 
-  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin, onSwipeDelete: deleteItemWithUndo });
+  initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin, onSwipeDelete: deleteItemWithUndo, onLongPress: openContextMenu });
   initGridView({ onOpenItem: goDetail });
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView, onDelete: deleteItemWithUndo, onNavigate: goDetail });
   initAddView({ onSaved: () => history.back(), onCancel: backFromDetailOrAdd });
   initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
 
+  initPullToRefresh();
   window.addEventListener("sm:data-changed", refreshCurrentView);
 
   await registerServiceWorker();

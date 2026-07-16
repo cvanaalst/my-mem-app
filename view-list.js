@@ -19,7 +19,11 @@ let onOpenItem = () => {};
 let onTagClick = () => {};
 let onTogglePin = () => {};
 let onSwipeDelete = () => {};
+let onLongPress = () => {};
 let linkedIdSet = new Set();
+
+// How many cards get the staggered entrance before it snaps to instant.
+const STAGGER_LIMIT = 12;
 
 // Bumped on every resetAndLoadList() call so an in-flight query whose
 // filters have since changed can detect it's stale and discard its
@@ -32,6 +36,7 @@ export function initListView(handlers) {
   onTagClick = handlers.onTagClick || (() => {});
   onTogglePin = handlers.onTogglePin || (() => {});
   onSwipeDelete = handlers.onSwipeDelete || (() => {});
+  onLongPress = handlers.onLongPress || (() => {});
   loadMoreBtn.addEventListener("click", () => loadMore());
 }
 
@@ -48,7 +53,7 @@ export async function resetAndLoadList() {
 async function loadMore(replace = false, gen = generation) {
   if (!replace && state.list.loading) return;
   state.list.loading = true;
-  loadingEl.classList.toggle("hidden", !replace);
+  if (replace) showSkeletons();
 
   try {
     const { results, hasMore } = await db.queryItems({
@@ -75,16 +80,52 @@ async function loadMore(replace = false, gen = generation) {
       emptyEl.classList.add("hidden");
     }
 
-    for (const item of results) {
-      listEl.appendChild(renderCard(item));
-    }
+    // Stagger the entrance of a fresh page of cards. Only the first
+    // handful are delayed — beyond that the cascade stops being charming
+    // and starts feeling like lag — and only on a replace, so "load more"
+    // appends don't re-animate the rows already on screen.
+    results.forEach((item, i) => {
+      const card = renderCard(item);
+      if (replace && i < STAGGER_LIMIT) {
+        card.classList.add("card-enter");
+        card.style.setProperty("--enter-delay", `${i * 20}ms`);
+      }
+      listEl.appendChild(card);
+    });
 
     state.list.offset += results.length;
     loadMoreBtn.classList.toggle("hidden", !hasMore);
   } finally {
     state.list.loading = false;
-    loadingEl.classList.add("hidden");
+    hideSkeletons();
   }
+}
+
+/**
+ * Skeletons only appear if the query is slow enough to be worth covering
+ * (>150ms); a local IndexedDB read is usually far quicker than that, and a
+ * skeleton that flashes for one frame reads as a glitch, not as progress.
+ */
+let skeletonTimer = null;
+function showSkeletons() {
+  clearTimeout(skeletonTimer);
+  skeletonTimer = setTimeout(() => {
+    loadingEl.innerHTML = Array.from({ length: 5 }, () => `
+      <div class="skeleton-card">
+        <div class="skeleton-tile"></div>
+        <div class="skeleton-lines">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+      </div>`).join("");
+    loadingEl.classList.remove("hidden");
+  }, 150);
+}
+
+function hideSkeletons() {
+  clearTimeout(skeletonTimer);
+  loadingEl.classList.add("hidden");
+  loadingEl.innerHTML = "";
 }
 
 function renderCard(item) {
@@ -205,16 +246,36 @@ function renderCard(item) {
  * pattern already used for the photo lightbox's swipe navigation.
  * Distinguishes from vertical list scrolling by bailing out as soon as
  * a gesture reads as more vertical than horizontal.
+ *
+ * Long-press (holding still for 500ms) opens the context menu instead.
+ * It lives here rather than in its own handler so it can share this
+ * gesture's state: any drag cancels the press, and a fired press
+ * suppresses the tap-to-open click that would otherwise follow.
  */
 function attachSwipe(card, item) {
   const THRESHOLD = 72;
+  const LONG_PRESS_MS = 500;
   let startX = null;
   let startY = null;
   let dx = 0;
   let active = false;
   let dragged = false;
+  let longPressTimer = null;
+  let longPressed = false;
 
   card.style.touchAction = "pan-y";
+
+  const startLongPress = () => {
+    clearTimeout(longPressTimer);
+    longPressed = false;
+    longPressTimer = setTimeout(() => {
+      if (dragged) return;
+      longPressed = true;
+      if (navigator.vibrate) navigator.vibrate(8); // subtle "it triggered" cue
+      onLongPress(item);
+    }, LONG_PRESS_MS);
+  };
+  const cancelLongPress = () => clearTimeout(longPressTimer);
 
   card.addEventListener("touchstart", (e) => {
     if (e.touches.length !== 1) return;
@@ -223,7 +284,14 @@ function attachSwipe(card, item) {
     active = true;
     dragged = false;
     card.style.transition = "none";
+    startLongPress();
   }, { passive: true });
+
+  // Desktop equivalent — press and hold with the mouse.
+  card.addEventListener("mousedown", startLongPress);
+  card.addEventListener("mousemove", cancelLongPress);
+  card.addEventListener("mouseup", cancelLongPress);
+  card.addEventListener("mouseleave", cancelLongPress);
 
   card.addEventListener("touchmove", (e) => {
     if (!active || startX === null) return;
@@ -231,6 +299,8 @@ function attachSwipe(card, item) {
     const y = e.touches[0].clientY;
     const deltaX = x - startX;
     const deltaY = y - startY;
+    // Any real movement means this is a scroll or a swipe, not a press.
+    if (Math.abs(deltaX) > 8 || Math.abs(deltaY) > 8) cancelLongPress();
     if (!dragged && Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 10) {
       // Reads as a vertical scroll, not a swipe — let it scroll normally.
       active = false;
@@ -246,6 +316,7 @@ function attachSwipe(card, item) {
   }, { passive: true });
 
   card.addEventListener("touchend", () => {
+    cancelLongPress();
     if (!active) { startX = null; return; }
     active = false;
     card.style.transition = "transform 0.2s ease, opacity 0.2s ease";
@@ -266,6 +337,13 @@ function attachSwipe(card, item) {
   });
 
   card.addEventListener("click", (e) => {
+    // A long-press already acted (menu is open) — don't also open the item.
+    if (longPressed) {
+      e.preventDefault();
+      e.stopPropagation();
+      longPressed = false;
+      return;
+    }
     if (dragged) {
       e.preventDefault();
       e.stopPropagation();

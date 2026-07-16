@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml, trapFocus } from "./ui.js";
 import { icons, typeIconSvg } from "./icons.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -52,6 +52,7 @@ let currentAllTags = [];
 let pinned = false;
 let textViewMode = "rendered"; // "rendered" | "edit" — text items only
 let linkedItems = []; // [{id, title, type}] — resolved from item.linkedIds on open
+let releaseLinkPickerFocus = null;
 let onClose = () => {};
 let onChanged = () => {};
 let onDelete = async () => {};
@@ -80,7 +81,7 @@ export function initDetailView(handlers) {
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
   btnPrint.addEventListener("click", () => window.print());
-  btnShare.addEventListener("click", handleShare);
+  btnShare.addEventListener("click", () => shareItem(currentItem));
   btnPin.addEventListener("click", () => { pinned = !pinned; renderPin(); });
   btnTextMode.addEventListener("click", () => {
     textViewMode = textViewMode === "rendered" ? "edit" : "rendered";
@@ -146,11 +147,13 @@ function renderBacklinks(backlinks) {
 function openLinkPicker() {
   linkPickerSearch.value = "";
   linkPickerDialog.classList.remove("hidden");
-  linkPickerSearch.focus();
+  releaseLinkPickerFocus = trapFocus(linkPickerDialog, closeLinkPicker);
+  linkPickerSearch.focus(); // prefer the search field over the trap's first control
   renderLinkPickerResults("");
 }
 
 function closeLinkPicker() {
+  if (releaseLinkPickerFocus) { releaseLinkPickerFocus(); releaseLinkPickerFocus = null; }
   linkPickerDialog.classList.add("hidden");
 }
 
@@ -311,8 +314,9 @@ async function handleOpenMedia() {
   resolveTab(media?.blob || null);
 }
 
-async function handleShare() {
-  const item = currentItem;
+/** Share (or copy) an item — used by the Detail view's Share button and by
+ *  the list's long-press context menu, so both behave identically. */
+export async function shareItem(item) {
   try {
     if (item.type === "link" && item.url) {
       await shareOrCopy({ title: item.title, url: item.url }, item.url);

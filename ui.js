@@ -98,6 +98,47 @@ export function openTabForAsyncBlob() {
   };
 }
 
+/* ----------------------------------------------------------- modal focus */
+
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Makes an overlay behave like a real modal for keyboard users: Tab cycles
+ * within it instead of escaping to the page behind, Escape closes it, and
+ * focus returns to whatever opened it. Call the returned release() when the
+ * overlay closes. Visibility is tested via getClientRects() so hidden
+ * controls (e.g. the Cancel button in alertDialog) are skipped.
+ */
+export function trapFocus(overlay, onEscape) {
+  const previouslyFocused = document.activeElement;
+  const focusable = () =>
+    [...overlay.querySelectorAll(FOCUSABLE)].filter((el) => el.getClientRects().length > 0);
+
+  function onKeydown(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      if (onEscape) onEscape();
+      return;
+    }
+    if (e.key !== "Tab") return;
+    const items = focusable();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  document.addEventListener("keydown", onKeydown, true);
+  const first = focusable()[0];
+  if (first) first.focus();
+
+  return function release() {
+    document.removeEventListener("keydown", onKeydown, true);
+    if (previouslyFocused && typeof previouslyFocused.focus === "function") previouslyFocused.focus();
+  };
+}
+
 /* --------------------------------------------------------------- confirm */
 
 export function confirmDialog(message, okLabel) {
@@ -113,7 +154,10 @@ export function confirmDialog(message, okLabel) {
   overlay.classList.remove("hidden");
 
   return new Promise((resolve) => {
+    // Escape means "don't do the risky thing", i.e. same as Cancel.
+    const release = trapFocus(overlay, () => onCancel());
     function cleanup(result) {
+      release();
       overlay.classList.add("hidden");
       okBtn.removeEventListener("click", onOk);
       cancelBtn.removeEventListener("click", onCancel);
@@ -140,7 +184,9 @@ export function alertDialog(message, okLabel) {
   overlay.classList.remove("hidden");
 
   return new Promise((resolve) => {
+    const release = trapFocus(overlay, () => onOk()); // OK is the only action
     function onOk() {
+      release();
       overlay.classList.add("hidden");
       cancelBtn.classList.remove("hidden");
       okBtn.removeEventListener("click", onOk);
