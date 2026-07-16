@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, alertDialog, formatDate, formatBytes } from "./ui.js";
+import { toast, confirmDialog, alertDialog, formatDate, formatBytes, escapeHtml } from "./ui.js";
 import { sync } from "./sync.js";
 import { APP_VERSION } from "./version.js";
 
@@ -24,6 +24,11 @@ const themeSelector = document.getElementById("theme-selector");
 const selectLanguage = document.getElementById("select-language");
 const selectDensity = document.getElementById("select-density");
 const storageInfoEl = document.getElementById("storage-info");
+const btnPrintOverview = document.getElementById("btn-print-overview");
+const printOverviewEl = document.getElementById("print-overview");
+
+const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", file: "typeFile" };
+const TYPE_ORDER = ["link", "text", "image", "file"];
 
 let onThemeChange = () => {};
 let onLangChange = () => {};
@@ -42,6 +47,11 @@ export function initSettingsView(handlers) {
   btnRestore.addEventListener("click", showBackupList);
   btnExportJson.addEventListener("click", () => exportData("json"));
   btnExportCsv.addEventListener("click", () => exportData("csv"));
+  btnPrintOverview.addEventListener("click", printOverview);
+  window.addEventListener("afterprint", () => {
+    document.body.classList.remove("printing-overview");
+    printOverviewEl.innerHTML = "";
+  });
 
   themeSelector.addEventListener("click", (e) => {
     const btn = e.target.closest(".theme-swatch");
@@ -194,6 +204,64 @@ function downloadBlob(blob, filename) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* -------------------------------------------------------------- print */
+
+async function printOverview() {
+  const all = await db.getAllItems();
+  const live = all.filter((item) => !item.deletedAt);
+  if (live.length === 0) {
+    toast(t("printOverviewEmpty"), "error");
+    return;
+  }
+
+  const locale = state.lang === "nl" ? "nl-NL" : "en-GB";
+  const groups = TYPE_ORDER
+    .map((type) => ({
+      type,
+      items: live
+        .filter((item) => item.type === type)
+        .sort((a, b) => a.title.localeCompare(b.title, locale, { sensitivity: "base" })),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  const groupsHtml = groups
+    .map(
+      (group) => `<div class="print-overview-group">
+        <h2>${escapeHtml(t(TYPE_LABEL_KEYS[group.type]))} (${group.items.length})</h2>
+        ${group.items.map(renderPrintOverviewItem).join("")}
+      </div>`
+    )
+    .join("");
+
+  printOverviewEl.innerHTML = `
+    <h1 class="print-overview-title">${escapeHtml(t("printOverviewTitle"))}</h1>
+    <p class="print-overview-meta">${escapeHtml(t("printOverviewMeta", { count: live.length, date: formatDate(new Date().toISOString()) }))}</p>
+    ${groupsHtml}
+  `;
+
+  document.body.classList.add("printing-overview");
+  window.print();
+}
+
+function renderPrintOverviewItem(item) {
+  const tagsHtml = item.tags && item.tags.length > 0
+    ? `<div class="print-overview-item-tags">${item.tags.map(escapeHtml).join(", ")}</div>`
+    : "";
+  const urlHtml = item.type === "link" && item.url
+    ? `<div class="print-overview-item-meta">${escapeHtml(item.url)}</div>`
+    : "";
+  const commentHtml = item.comment
+    ? `<div class="print-overview-item-comment">${escapeHtml(item.comment)}</div>`
+    : "";
+  return `<div class="print-overview-item">
+    <div class="print-overview-item-title">${escapeHtml(item.title)}</div>
+    ${urlHtml}
+    ${tagsHtml}
+    <div class="print-overview-item-meta">${escapeHtml(formatDate(item.createdAt))}</div>
+    ${commentHtml}
+  </div>`;
 }
 
 /* ------------------------------------------------------------ storage */

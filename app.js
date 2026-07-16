@@ -176,6 +176,7 @@ document.getElementById("btn-report-back").addEventListener("click", backFromRep
 const searchbar = document.getElementById("searchbar");
 const searchInput = document.getElementById("search-input");
 const btnSearchToggle = document.getElementById("btn-search-toggle");
+const btnDensityToggle = document.getElementById("btn-density-toggle");
 const btnFilterToggle = document.getElementById("btn-filter-toggle");
 const filterPanel = document.getElementById("filter-panel");
 const typeFilterChips = document.getElementById("type-filter-chips");
@@ -190,6 +191,20 @@ let searchDebounce = null;
 btnSearchToggle.addEventListener("click", () => {
   searchbar.classList.toggle("hidden");
   if (!searchbar.classList.contains("hidden")) searchInput.focus();
+});
+
+// Icon shows the CURRENT density; tapping switches to the other one.
+const DENSITY_ICON_COMFORTABLE = '<svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v4H4V5zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>';
+const DENSITY_ICON_COMPACT = '<svg viewBox="0 0 24 24" class="icon"><path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"/></svg>';
+
+function renderDensityToggle() {
+  const isCompact = state.listDensity === "compact";
+  btnDensityToggle.innerHTML = isCompact ? DENSITY_ICON_COMPACT : DENSITY_ICON_COMFORTABLE;
+  btnDensityToggle.setAttribute("aria-label", t(isCompact ? "densityCompact" : "densityComfortable"));
+}
+
+btnDensityToggle.addEventListener("click", () => {
+  setListDensity(state.listDensity === "compact" ? "comfortable" : "compact");
 });
 
 searchInput.addEventListener("input", () => {
@@ -338,12 +353,14 @@ async function setLanguage(lang) {
   state.lang = i18n.getLang();
   await db.setMeta("language", state.lang);
   i18n.applyTranslations();
+  renderDensityToggle();
   await refreshCurrentView();
 }
 
 async function setListDensity(density) {
   state.listDensity = density === "compact" ? "compact" : "comfortable";
   await db.setMeta("listDensity", state.listDensity);
+  renderDensityToggle();
   await refreshCurrentView();
 }
 
@@ -459,6 +476,7 @@ async function boot() {
   state.lang = i18n.getLang();
   state.listDensity = savedDensity === "compact" ? "compact" : "comfortable";
   i18n.applyTranslations();
+  renderDensityToggle();
 
   initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin, onSwipeDelete: deleteItemWithUndo });
   initGridView({ onOpenItem: goDetail });

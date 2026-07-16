@@ -35,6 +35,7 @@
   <div id="searchbar" class="searchbar hidden">
     <div class="searchbar-row">
       <input id="search-input" type="text" class="search-input" data-i18n-placeholder="searchPlaceholder" autocomplete="off" spellcheck="false">
+      <button id="btn-density-toggle" class="icon-btn"></button>
       <button id="btn-filter-toggle" class="icon-btn" data-i18n-aria="filter">
         <svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v2H4zm3 6h10v2H7zm3 6h4v2h-4z"/></svg>
       </button>
@@ -258,6 +259,11 @@
       </div>
 
       <div class="settings-group">
+        <h2 class="settings-heading" data-i18n="printing">Afdrukken</h2>
+        <button type="button" id="btn-print-overview" class="secondary-btn full-width" data-i18n="printOverviewButton">Overzicht afdrukken</button>
+      </div>
+
+      <div class="settings-group">
         <h2 class="settings-heading" data-i18n="appearance">Weergave</h2>
         <div class="theme-grid" id="theme-selector">
           <button type="button" class="theme-swatch" data-theme="dark">
@@ -382,6 +388,9 @@
   </div>
 
 </div>
+
+<!-- ===== Print overview (all entries, populated on demand, print-only) ===== -->
+<div id="print-overview"></div>
 
 <script type="module" src="app.js"></script>
 </body>

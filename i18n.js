@@ -92,6 +92,12 @@ const dict = {
     exportCsv: "Exporteer CSV",
     exportDone: "Export gedownload",
 
+    printing: "Afdrukken",
+    printOverviewButton: "Overzicht afdrukken",
+    printOverviewTitle: "Second Memory — Overzicht",
+    printOverviewMeta: "{count} items — {date}",
+    printOverviewEmpty: "Nog niets om af te drukken.",
+
     appearance: "Weergave",
     themeDark: "Donker",
     themeLight: "Licht",
@@ -231,6 +237,12 @@ const dict = {
     exportJson: "Export JSON",
     exportCsv: "Export CSV",
     exportDone: "Export downloaded",
+
+    printing: "Printing",
+    printOverviewButton: "Print overview",
+    printOverviewTitle: "Second Memory — Overview",
+    printOverviewMeta: "{count} items — {date}",
+    printOverviewEmpty: "Nothing to print yet.",
 
     appearance: "Appearance",
     themeDark: "Dark",
