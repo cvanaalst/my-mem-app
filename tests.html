@@ -230,6 +230,38 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   assertEqual(total, 0, "bucketItemsByWeek: items older than the window aren't counted anywhere");
 }
 
+// --- db.computeBacklinks (Detail view "Linked from" section) ---
+
+{
+  const items = [
+    item({ id: "a", linkedIds: ["b"] }),
+    item({ id: "b", linkedIds: [] }),
+    item({ id: "c", linkedIds: ["b"] }),
+  ];
+  const backlinks = db.computeBacklinks(items, "b").map((i) => i.id);
+  assertEqual(backlinks, ["a", "c"], "computeBacklinks: finds every item whose linkedIds points at the target");
+}
+
+{
+  const items = [item({ id: "a", linkedIds: [] })];
+  assertEqual(db.computeBacklinks(items, "a"), [], "computeBacklinks: an item with no incoming links has no backlinks");
+}
+
+{
+  const items = [item({ id: "a", linkedIds: ["a"] })];
+  assertEqual(db.computeBacklinks(items, "a"), [], "computeBacklinks: an item can't be its own backlink even if linkedIds is malformed");
+}
+
+{
+  const items = [item({ id: "a", linkedIds: ["b"], deletedAt: "2026-01-02T00:00:00.000Z" })];
+  assertEqual(db.computeBacklinks(items, "b"), [], "computeBacklinks: a deleted (tombstoned) item is never shown as a backlink");
+}
+
+{
+  const items = [item({ id: "a" })]; // no linkedIds field at all — pre-linking-feature record
+  assertEqual(db.computeBacklinks(items, "b"), [], "computeBacklinks: items without a linkedIds field are treated as having no links");
+}
+
 // --- markdown.renderMarkdown (Detail view rendering for text items) ---
 
 {

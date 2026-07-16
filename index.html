@@ -150,6 +150,15 @@
         <div id="detail-tags-chips" class="chip-row editable"></div>
         <div id="detail-tags-suggestions" class="suggestion-row hidden"></div>
 
+        <label class="form-label" data-i18n="linkedItems">Gekoppelde items</label>
+        <div id="detail-links-chips" class="chip-row editable"></div>
+        <button type="button" id="btn-detail-add-link" class="secondary-btn full-width" data-i18n="addLink">Koppeling toevoegen</button>
+
+        <div id="detail-backlinks-section" class="hidden">
+          <label class="form-label" data-i18n="linkedFrom">Gekoppeld vanuit</label>
+          <div id="detail-backlinks-chips" class="chip-row"></div>
+        </div>
+
         <div class="detail-meta">
           <span id="detail-created"></span>
           <span id="detail-updated"></span>
@@ -383,6 +392,18 @@
       <div class="dialog-buttons">
         <button id="confirm-cancel" class="secondary-btn" data-i18n="cancel">Annuleer</button>
         <button id="confirm-ok" class="primary-btn danger" data-i18n="confirmOk">Bevestig</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Link picker dialog ===== -->
+  <div id="link-picker-dialog" class="dialog-overlay hidden">
+    <div class="dialog-box link-picker-box">
+      <p data-i18n="linkPickerTitle">Kies een item om te koppelen</p>
+      <input id="link-picker-search" class="form-input" type="text" data-i18n-placeholder="linkPickerSearchPlaceholder" autocomplete="off">
+      <div id="link-picker-results" class="link-picker-results"></div>
+      <div class="dialog-buttons">
+        <button type="button" id="link-picker-cancel" class="secondary-btn" data-i18n="cancel">Annuleer</button>
       </div>
     </div>
   </div>

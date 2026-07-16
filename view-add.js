@@ -171,6 +171,7 @@ async function handleSave(e) {
     tags: tagWidget.getTags(),
     pinned,
     reminderAt: reminderInput.value || null,
+    linkedIds: [],
     url: null, text: null, mediaId: null, filename: null, mimeType: null,
     createdAt: now,
     updatedAt: now,

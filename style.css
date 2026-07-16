@@ -777,6 +777,30 @@ button, input, textarea, select {
 .dialog-buttons { display: flex; gap: 10px; }
 .dialog-buttons > * { flex: 1; }
 
+/* ---- Link picker dialog ---- */
+.link-picker-box { max-width: 420px; display: flex; flex-direction: column; max-height: 80vh; }
+.link-picker-results {
+  margin: 10px 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.link-picker-result-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--chip-bg);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.link-picker-result-row .icon { width: 18px; height: 18px; color: var(--accent); flex-shrink: 0; }
+.link-picker-empty { font-size: 14px; color: var(--text-secondary); padding: 10px 0; }
+
 /* ---- Responsive: tablet / desktop ---- */
 @media (min-width: 700px) {
   .content { max-width: 640px; margin: 0 auto; width: 100%; }

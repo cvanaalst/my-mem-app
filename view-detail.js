@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml, typeIconSvg } from "./ui.js";
 import { renderMarkdown } from "./markdown.js";
 
 const { t } = i18n;
@@ -35,6 +35,14 @@ const btnDelete = document.getElementById("btn-detail-delete");
 const btnShare = document.getElementById("btn-detail-share");
 const btnPin = document.getElementById("btn-detail-pin");
 const btnPrint = document.getElementById("btn-detail-print");
+const linksChips = document.getElementById("detail-links-chips");
+const btnAddLink = document.getElementById("btn-detail-add-link");
+const backlinksSection = document.getElementById("detail-backlinks-section");
+const backlinksChips = document.getElementById("detail-backlinks-chips");
+const linkPickerDialog = document.getElementById("link-picker-dialog");
+const linkPickerSearch = document.getElementById("link-picker-search");
+const linkPickerResults = document.getElementById("link-picker-results");
+const linkPickerCancel = document.getElementById("link-picker-cancel");
 
 const PENCIL_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
 const EYE_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
@@ -45,14 +53,17 @@ let currentItem = null;
 let currentAllTags = [];
 let pinned = false;
 let textViewMode = "rendered"; // "rendered" | "edit" — text items only
+let linkedItems = []; // [{id, title, type}] — resolved from item.linkedIds on open
 let onClose = () => {};
 let onChanged = () => {};
 let onDelete = async () => {};
+let onNavigate = () => {};
 
 export function initDetailView(handlers) {
   onClose = handlers.onClose;
   onDelete = handlers.onDelete;
   onChanged = handlers.onChanged;
+  onNavigate = handlers.onNavigate;
 
   // Created once, here — NOT inside openDetail(), which runs every time a
   // different item is opened. setupTagInput() attaches keydown/blur
@@ -88,10 +99,84 @@ export function initDetailView(handlers) {
   });
   btnOpenMedia.addEventListener("click", handleOpenMedia);
   form.addEventListener("submit", handleSave);
+
+  btnAddLink.addEventListener("click", openLinkPicker);
+  linkPickerCancel.addEventListener("click", closeLinkPicker);
+  linkPickerSearch.addEventListener("input", () => renderLinkPickerResults(linkPickerSearch.value.trim()));
 }
 
 function renderPin() {
   btnPin.classList.toggle("active", pinned);
+}
+
+/**
+ * Linked items are directional (this item points at others) but shown
+ * bidirectionally: the "Linked items" row is editable state staged here
+ * and only persisted on Opslaan, same as tags. The "Linked from" row
+ * below it is read-only and computed fresh from the DB on every open
+ * (db.getBacklinks), so it can never go stale relative to what other
+ * items actually point here.
+ */
+function renderLinks() {
+  linksChips.innerHTML = "";
+  for (const link of linkedItems) {
+    const chip = document.createElement("span");
+    chip.className = "chip removable";
+    chip.innerHTML = `<span>${escapeHtml(link.title)}</span><span class="chip-remove">&times;</span>`;
+    chip.querySelector("span").addEventListener("click", () => onNavigate(link.id));
+    chip.querySelector(".chip-remove").addEventListener("click", (e) => {
+      e.stopPropagation();
+      linkedItems = linkedItems.filter((x) => x.id !== link.id);
+      renderLinks();
+    });
+    linksChips.appendChild(chip);
+  }
+}
+
+function renderBacklinks(backlinks) {
+  backlinksSection.classList.toggle("hidden", backlinks.length === 0);
+  backlinksChips.innerHTML = "";
+  for (const item of backlinks) {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = item.title;
+    chip.addEventListener("click", () => onNavigate(item.id));
+    backlinksChips.appendChild(chip);
+  }
+}
+
+function openLinkPicker() {
+  linkPickerSearch.value = "";
+  linkPickerDialog.classList.remove("hidden");
+  linkPickerSearch.focus();
+  renderLinkPickerResults("");
+}
+
+function closeLinkPicker() {
+  linkPickerDialog.classList.add("hidden");
+}
+
+async function renderLinkPickerResults(query) {
+  const { results } = await db.queryItems({ search: query, limit: 50 });
+  const excludeIds = new Set([currentItem.id, ...linkedItems.map((x) => x.id)]);
+  const candidates = results.filter((item) => !excludeIds.has(item.id));
+
+  linkPickerResults.innerHTML = "";
+  if (candidates.length === 0) {
+    linkPickerResults.innerHTML = `<p class="link-picker-empty">${escapeHtml(t("linkPickerEmpty"))}</p>`;
+    return;
+  }
+  for (const item of candidates) {
+    const row = document.createElement("div");
+    row.className = "link-picker-result-row";
+    row.innerHTML = `<svg viewBox="0 0 24 24" class="icon">${typeIconSvg(item.type)}</svg><span>${escapeHtml(item.title)}</span>`;
+    row.addEventListener("click", () => {
+      linkedItems.push({ id: item.id, title: item.title, type: item.type });
+      renderLinks();
+      closeLinkPicker();
+    });
+    linkPickerResults.appendChild(row);
+  }
 }
 
 /**
@@ -120,6 +205,7 @@ export async function openDetail(id) {
   if (!item) { toast(t("noResults"), "error"); onClose(); return; }
   currentItem = item;
   state.detailItemId = id;
+  closeLinkPicker();
 
   titleInput.value = item.title || "";
   commentInput.value = item.comment || "";
@@ -166,6 +252,17 @@ export async function openDetail(id) {
   tagWidget.setTags(item.tags || []);
   currentAllTags = (await db.getRecentTags()).map((x) => x.tag);
   tagWidget.renderSuggestions(currentAllTags);
+
+  // Resolved fresh from the DB on every open — silently drops ids for
+  // items that were deleted since this item last linked to them, rather
+  // than persisting a cleanup write on every delete elsewhere.
+  const resolvedLinks = await Promise.all((item.linkedIds || []).map((linkedId) => db.getItem(linkedId)));
+  linkedItems = resolvedLinks
+    .filter((linked) => linked && !linked.deletedAt)
+    .map((linked) => ({ id: linked.id, title: linked.title, type: linked.type }));
+  renderLinks();
+
+  renderBacklinks(await db.getBacklinks(item.id));
 }
 
 async function handleSave(e) {
@@ -187,6 +284,7 @@ async function handleSave(e) {
     tags: tagWidget.getTags(),
     pinned,
     reminderAt: reminderInput.value || null,
+    linkedIds: linkedItems.map((x) => x.id),
     updatedAt: new Date().toISOString(),
   };
   if (currentItem.type === "link") updated.url = urlInput.value.trim();

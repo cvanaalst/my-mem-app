@@ -238,6 +238,22 @@ function normalizeSearchText(str) {
     .replace(/[̀-ͯ]/g, ""); // strip diacritics
 }
 
+/* --------------------------------------------------------------- links */
+
+/**
+ * Pure: items are linked one-directionally (item.linkedIds points at
+ * others), but the Detail view shows backlinks too, so a link is
+ * discoverable from either end without a second write. Kept separate
+ * from getBacklinks() so it's directly unit-testable (see tests.html).
+ */
+function computeBacklinks(items, itemId) {
+  return items.filter((item) => !item.deletedAt && item.id !== itemId && (item.linkedIds || []).includes(itemId));
+}
+
+async function getBacklinks(itemId) {
+  return computeBacklinks(await getAllItems(), itemId);
+}
+
 /* -------------------------------------------------------------- report */
 
 function startOfWeek(date) {
@@ -429,6 +445,8 @@ export const db = {
   sortTagsByRecency,
   getStats,
   bucketItemsByWeek,
+  computeBacklinks,
+  getBacklinks,
   putMedia,
   getMedia,
   deleteMedia,
