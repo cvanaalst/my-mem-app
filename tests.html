@@ -262,6 +262,36 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   assertEqual(db.computeBacklinks(items, "b"), [], "computeBacklinks: items without a linkedIds field are treated as having no links");
 }
 
+// --- db.computeLinkedIdSet (list view link badge) ---
+
+{
+  const items = [
+    item({ id: "a", linkedIds: ["b"] }),
+    item({ id: "b", linkedIds: [] }),
+    item({ id: "c", linkedIds: [] }),
+  ];
+  const linked = db.computeLinkedIdSet(items);
+  assertEqual([...linked].sort(), ["a", "b"], "computeLinkedIdSet: both the source and target of a link are marked linked");
+  assertEqual(linked.has("c"), false, "computeLinkedIdSet: an item with no link relationship is left out");
+}
+
+{
+  const items = [item({ id: "a", linkedIds: ["missing"] })];
+  const linked = db.computeLinkedIdSet(items);
+  assertEqual(linked.size, 0, "computeLinkedIdSet: a dangling link to a nonexistent id doesn't mark either end as linked");
+}
+
+{
+  const items = [item({ id: "a", linkedIds: ["b"] }), item({ id: "b", linkedIds: [], deletedAt: "2026-01-02T00:00:00.000Z" })];
+  const linked = db.computeLinkedIdSet(items);
+  assertEqual(linked.size, 0, "computeLinkedIdSet: a link to a deleted item doesn't mark either end as linked");
+}
+
+{
+  const items = [item({ id: "a" })]; // no linkedIds field at all
+  assertEqual(db.computeLinkedIdSet(items).size, 0, "computeLinkedIdSet: items without a linkedIds field contribute nothing");
+}
+
 // --- markdown.renderMarkdown (Detail view rendering for text items) ---
 
 {

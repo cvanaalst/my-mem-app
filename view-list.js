@@ -18,6 +18,7 @@ let onOpenItem = () => {};
 let onTagClick = () => {};
 let onTogglePin = () => {};
 let onSwipeDelete = () => {};
+let linkedIdSet = new Set();
 
 // Bumped on every resetAndLoadList() call so an in-flight query whose
 // filters have since changed can detect it's stale and discard its
@@ -37,6 +38,9 @@ export async function resetAndLoadList() {
   state.list.offset = 0;
   listEl.innerHTML = "";
   generation++;
+  // Computed once per reset rather than per card — same one-full-scan
+  // trade-off as getRecentTags()/getAllTags(), fine at personal scale.
+  linkedIdSet = await db.getLinkedIdSet();
   await loadMore(true, generation);
 }
 
@@ -145,6 +149,17 @@ function renderCard(item) {
 
   card.appendChild(body);
 
+  const actions = document.createElement("div");
+  actions.className = "item-card-actions";
+
+  if (linkedIdSet.has(item.id)) {
+    const linkBadge = document.createElement("span");
+    linkBadge.className = "item-card-link-badge";
+    linkBadge.setAttribute("aria-label", t("hasLinkedItems"));
+    linkBadge.innerHTML = '<svg viewBox="0 0 24 24" class="icon"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>';
+    actions.appendChild(linkBadge);
+  }
+
   const pinBtn = document.createElement("button");
   pinBtn.type = "button";
   pinBtn.className = `item-card-pin${item.pinned ? " active" : ""}`;
@@ -153,7 +168,9 @@ function renderCard(item) {
     e.stopPropagation();
     onTogglePin(item.id, !item.pinned);
   });
-  card.appendChild(pinBtn);
+  actions.appendChild(pinBtn);
+
+  card.appendChild(actions);
 
   if (item.type === "image" && item.mediaId) {
     loadThumbnail(item.mediaId, iconBox);

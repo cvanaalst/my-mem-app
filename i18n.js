@@ -54,6 +54,7 @@ const dict = {
     linkPickerTitle: "Kies een item om te koppelen",
     linkPickerSearchPlaceholder: "Zoek een item…",
     linkPickerEmpty: "Geen items gevonden.",
+    hasLinkedItems: "Heeft gekoppelde items",
     titleRequired: "Titel is verplicht.",
 
     addTitle: "Nieuw item",
@@ -206,6 +207,7 @@ const dict = {
     linkPickerTitle: "Choose an item to link",
     linkPickerSearchPlaceholder: "Search for an item…",
     linkPickerEmpty: "No items found.",
+    hasLinkedItems: "Has linked items",
     titleRequired: "Title is required.",
 
     addTitle: "New item",

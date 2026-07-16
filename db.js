@@ -254,6 +254,32 @@ async function getBacklinks(itemId) {
   return computeBacklinks(await getAllItems(), itemId);
 }
 
+/**
+ * Pure: one pass over every live item to find which ones participate in
+ * at least one link, in either direction — for the list view's link
+ * badge, which needs a yes/no per card rather than a full backlink list.
+ * A dangling linkedIds entry (target got deleted) doesn't count on
+ * either end, matching how the Detail view drops dead links on render.
+ */
+function computeLinkedIdSet(items) {
+  const liveIds = new Set(items.filter((item) => !item.deletedAt).map((item) => item.id));
+  const linked = new Set();
+  for (const item of items) {
+    if (item.deletedAt) continue;
+    for (const linkedId of item.linkedIds || []) {
+      if (liveIds.has(linkedId)) {
+        linked.add(item.id);
+        linked.add(linkedId);
+      }
+    }
+  }
+  return linked;
+}
+
+async function getLinkedIdSet() {
+  return computeLinkedIdSet(await getAllItems());
+}
+
 /* -------------------------------------------------------------- report */
 
 function startOfWeek(date) {
@@ -447,6 +473,8 @@ export const db = {
   bucketItemsByWeek,
   computeBacklinks,
   getBacklinks,
+  computeLinkedIdSet,
+  getLinkedIdSet,
   putMedia,
   getMedia,
   deleteMedia,
