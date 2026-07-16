@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 
 SIZES = [16, 32, 48, 72, 96, 120, 128, 144, 152, 167, 180, 192, 256, 384, 512]
-BG = (10, 132, 255)       # accent blue
+BG = (125, 116, 255)      # accent indigo-violet (matches --accent)
 FG = (255, 255, 255)
 
 def draw_icon(size, corner_radius_ratio=0.22):

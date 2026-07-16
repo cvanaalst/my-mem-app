@@ -4,8 +4,20 @@
    Four themes: dark (default), light, midnight, paper.
    ========================================================================== */
 
+/* Self-hosted display face (Fraunces, OFL) — used only for the wordmark
+   and view titles; body text stays the system font. Latin subset, weight
+   600, so it stays a lean ~35KB and works fully offline. */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fonts/fraunces-600-latin.woff2") format("woff2");
+}
+
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -28,13 +40,14 @@
   --text: #ffffff;
   --text-secondary: #98989f;
   --text-tertiary: #636366;
-  --accent: #0a84ff;
+  --accent: #7d74ff;
   --accent-text: #ffffff;
   --danger: #ff453a;
   --success: #32d74b;
   --chip-bg: #2c2c2e;
-  --tag-bg: rgba(10, 132, 255, 0.18);
-  --tag-text: #4db2ff;
+  --tag-bg: rgba(125, 116, 255, 0.20);
+  --tag-text: #aca3ff;
+  --chrome-bg: rgba(10, 10, 12, 0.7);
   --overlay: rgba(0, 0, 0, 0.6);
   --shadow: rgba(0, 0, 0, 0.4);
   color-scheme: dark;
@@ -50,13 +63,14 @@
   --text: #000000;
   --text-secondary: #6e6e73;
   --text-tertiary: #aeaeb2;
-  --accent: #007aff;
+  --accent: #4b3ff0;
   --accent-text: #ffffff;
   --danger: #ff3b30;
   --success: #34c759;
   --chip-bg: #e5e5ea;
-  --tag-bg: rgba(0, 122, 255, 0.12);
-  --tag-text: #0064d6;
+  --tag-bg: rgba(75, 63, 240, 0.12);
+  --tag-text: #3a30c9;
+  --chrome-bg: rgba(242, 242, 247, 0.72);
   --overlay: rgba(0, 0, 0, 0.4);
   --shadow: rgba(0, 0, 0, 0.12);
   color-scheme: light;
@@ -79,6 +93,7 @@
   --chip-bg: #16161b;
   --tag-bg: rgba(15, 240, 252, 0.14);
   --tag-text: #0ff0fc;
+  --chrome-bg: rgba(0, 0, 0, 0.62);
   --overlay: rgba(0, 0, 0, 0.75);
   --shadow: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
@@ -101,6 +116,7 @@
   --chip-bg: #eee2c9;
   --tag-bg: rgba(181, 101, 29, 0.16);
   --tag-text: #8a4a15;
+  --chrome-bg: rgba(247, 241, 230, 0.72);
   --overlay: rgba(58, 47, 34, 0.4);
   --shadow: rgba(58, 47, 34, 0.15);
   color-scheme: light;
@@ -130,13 +146,28 @@ button, input, textarea, select {
 
 .hidden { display: none !important; }
 
-/* ---- App shell ---- */
+/* ---- App shell ----
+   The content is a single full-height scroller; the top chrome (title +
+   search/filter) and the bottom tab bar are translucent, blurred overlays
+   that the content scrolls underneath, for a native-iOS "glass" feel. */
 .app {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100dvh;
   width: 100%;
   overflow: hidden;
+}
+
+/* Top chrome: pinned glass overlay wrapping the topbar + search/filter.
+   Its live height is published to --chrome-top (see app.js ResizeObserver)
+   so the content can reserve exactly that much top padding as the search
+   bar toggles and the filter panel expands. */
+.top-chrome {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--bg); /* fallback when backdrop-filter is unsupported */
 }
 
 .topbar {
@@ -145,33 +176,35 @@ button, input, textarea, select {
   justify-content: space-between;
   height: calc(var(--topbar-height) + var(--safe-top));
   padding: calc(var(--safe-top) + 8px) 16px 8px;
-  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 
 .topbar-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
 .content {
-  flex: 1;
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 0 16px calc(16px + var(--safe-bottom));
+  padding: var(--chrome-top, 96px) 16px calc(var(--tabbar-height) + var(--safe-bottom) + 16px);
   padding-left: calc(16px + var(--safe-left));
   padding-right: calc(16px + var(--safe-right));
-  position: relative;
 }
 
 .view { padding-top: 12px; }
 
-/* ---- View-transition slide (list/grid <-> detail/add push-pop) ---- */
+/* ---- View-transition slide (list/grid <-> detail/add push-pop) ----
+   `top` matches the content's top padding so the absolutely-positioned
+   animating view lines up with its in-flow settled position (no jump). */
 .view.view-anim {
   position: absolute;
-  top: 0;
+  top: var(--chrome-top, 96px);
   left: 0;
   right: 0;
   transition: transform 0.25s ease, opacity 0.25s ease;
@@ -200,15 +233,18 @@ button, input, textarea, select {
 .icon { width: 22px; height: 22px; fill: currentColor; }
 .icon-large { width: 30px; height: 30px; }
 
+/* Outline (stroke) icons — a consistent Lucide-style family for the nav
+   chrome (tab bar, search, filter). Card/state glyphs (the favorite star,
+   type tiles) stay filled, which is the correct iOS convention. */
+.icon-line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
 .pin-toggle { color: var(--text-tertiary); }
 .pin-toggle.active { color: var(--accent); }
 
 /* ---- Search bar ---- */
 .searchbar {
   padding: 8px 16px;
-  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
 }
 .searchbar-row { display: flex; gap: 8px; align-items: center; }
 
@@ -341,8 +377,18 @@ button, input, textarea, select {
 .item-card-icon img { width: 100%; height: 100%; object-fit: cover; }
 .item-card-icon .icon { width: 22px; height: 22px; color: var(--accent); }
 
+/* Link monogram tile: domain's first letter over its deterministic color. */
+.item-card-monogram {
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
 .item-card-body { flex: 1; min-width: 0; }
 .item-card-title { font-size: 16px; font-weight: 600; margin: 0 0 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-card-domain { font-size: 13px; color: var(--text-secondary); margin: 0 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-card-comment { font-size: 14px; color: var(--text-secondary); margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .item-card-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; }
 .item-card-tags .chip {
@@ -391,6 +437,7 @@ button, input, textarea, select {
 }
 .item-card.compact .item-card-icon { width: 26px; height: 26px; }
 .item-card.compact .item-card-icon .icon { width: 15px; height: 15px; }
+.item-card.compact .item-card-monogram { font-size: 14px; }
 .item-card.compact .item-card-title { font-size: 15px; margin: 0; }
 .item-card.compact .item-card-actions { align-self: center; }
 .item-card.compact .item-card-pin .icon { width: 15px; height: 15px; }
@@ -399,12 +446,26 @@ button, input, textarea, select {
 /* ---- Empty / loading states ---- */
 .empty-state, .loading-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 60px 24px;
+  padding: 72px 24px;
   color: var(--text-secondary);
   font-size: 15px;
+  gap: 16px;
+}
+.empty-state p { margin: 0; max-width: 22ch; line-height: 1.5; }
+.empty-illustration {
+  width: 64px;
+  height: 64px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--text-tertiary);
+  opacity: 0.8;
 }
 
 .spinner {
@@ -476,7 +537,7 @@ button, input, textarea, select {
   justify-content: space-between;
   padding-bottom: 8px;
 }
-.detail-header-title { font-size: 16px; font-weight: 600; }
+.detail-header-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .detail-header-actions { display: flex; align-items: center; gap: 4px; }
 
 .detail-media {
@@ -725,11 +786,25 @@ button, input, textarea, select {
 
 /* ---- Tab bar ---- */
 .tabbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: flex;
   border-top: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--bg); /* fallback when backdrop-filter is unsupported */
   padding-bottom: var(--safe-bottom);
-  flex-shrink: 0;
+}
+
+/* Glass treatment for the pinned chrome — only where backdrop-filter is
+   supported (all target browsers; graceful opaque fallback otherwise). */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .top-chrome, .tabbar {
+    background: var(--chrome-bg);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
 }
 .tab-btn {
   flex: 1;

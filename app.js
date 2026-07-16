@@ -218,11 +218,27 @@ const btnClearFilters = document.getElementById("btn-clear-filters");
 const filterActiveBar = document.getElementById("filter-active-bar");
 const filterActiveText = document.getElementById("filter-active-text");
 
+// Publish the live height of the pinned glass header to --chrome-top, so
+// the scrolling content reserves exactly that much top padding. The header
+// grows/shrinks as the search bar toggles and the filter panel expands, so
+// syncChromeHeight() is called explicitly after each such change; a
+// ResizeObserver is layered on as a belt-and-braces catch (e.g. the reflow
+// when the display font finishes loading, or an orientation change).
+const topChrome = document.getElementById("top-chrome");
+function syncChromeHeight() {
+  document.documentElement.style.setProperty("--chrome-top", `${topChrome.offsetHeight}px`);
+}
+if ("ResizeObserver" in window) new ResizeObserver(syncChromeHeight).observe(topChrome);
+window.addEventListener("resize", syncChromeHeight);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncChromeHeight);
+syncChromeHeight();
+
 let searchDebounce = null;
 
 btnSearchToggle.addEventListener("click", () => {
   searchbar.classList.toggle("hidden");
   if (!searchbar.classList.contains("hidden")) searchInput.focus();
+  syncChromeHeight();
 });
 
 // Icon shows the CURRENT density; tapping switches to the other one.
@@ -250,6 +266,7 @@ btnFilterToggle.addEventListener("click", async () => {
     await renderFilterChips();
     syncSortAndDateInputs();
   }
+  syncChromeHeight();
 });
 
 sortSelect.addEventListener("change", () => {
@@ -306,6 +323,7 @@ function renderFilterIndicator() {
   btnFilterToggle.classList.toggle("has-active-filters", count > 0);
   filterActiveBar.classList.toggle("hidden", count === 0 || !onListOrGrid);
   if (count > 0) filterActiveText.textContent = t("filtersActive", { count });
+  syncChromeHeight(); // the active-filter bar changes the header height
 }
 
 async function activateTagFilter(tag) {

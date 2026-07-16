@@ -8,9 +8,10 @@
  */
 
 export const icons = {
-  // List-density toggle — the icon shows the CURRENT density.
-  densityComfortable: '<svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v4H4V5zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>',
-  densityCompact: '<svg viewBox="0 0 24 24" class="icon"><path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"/></svg>',
+  // List-density toggle — the icon shows the CURRENT density (outline style
+  // to match the nav chrome; comfortable = fewer taller rows).
+  densityComfortable: '<svg viewBox="0 0 24 24" class="icon icon-line"><rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/></svg>',
+  densityCompact: '<svg viewBox="0 0 24 24" class="icon icon-line"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="3" y1="14" x2="21" y2="14"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
 
   // Favorite/pin star on list cards.
   pin: '<svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>',

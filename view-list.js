@@ -93,9 +93,19 @@ function renderCard(item) {
   card.className = `item-card${compact ? " compact" : ""}`;
   card.dataset.id = item.id;
 
+  // Link items get a colored monogram tile (first letter of the domain,
+  // color deterministically derived from the domain) instead of the
+  // generic link glyph — more scannable, and offline-safe (no favicons).
+  const domain = item.type === "link" ? domainFromUrl(item.url) : "";
   const iconBox = document.createElement("div");
   iconBox.className = "item-card-icon";
-  iconBox.innerHTML = `<svg viewBox="0 0 24 24" class="icon">${typeIconSvg(item.type)}</svg>`;
+  if (domain) {
+    iconBox.classList.add("item-card-monogram");
+    iconBox.style.background = monogramColor(domain);
+    iconBox.textContent = domain[0].toUpperCase();
+  } else {
+    iconBox.innerHTML = `<svg viewBox="0 0 24 24" class="icon">${typeIconSvg(item.type)}</svg>`;
+  }
   card.appendChild(iconBox);
 
   const body = document.createElement("div");
@@ -110,6 +120,13 @@ function renderCard(item) {
   // (comment, tags, reminder, date) is what makes "comfortable" cards
   // taller, so it's exactly what compact mode drops.
   if (!compact) {
+    if (domain) {
+      const dom = document.createElement("p");
+      dom.className = "item-card-domain";
+      dom.textContent = domain;
+      body.appendChild(dom);
+    }
+
     if (item.comment) {
       const comment = document.createElement("p");
       comment.className = "item-card-comment";
@@ -257,6 +274,25 @@ function attachSwipe(card, item) {
     }
     onOpenItem(item.id);
   });
+}
+
+/** Bare registrable-ish host for display: strips protocol and a leading www. */
+function domainFromUrl(url) {
+  if (!url) return "";
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch (_) {
+    // Not a parseable absolute URL — best-effort strip.
+    return String(url).replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+  }
+}
+
+/** Deterministic, evenly-distributed tile color from a domain (stable per site). */
+function monogramColor(domain) {
+  let hash = 0;
+  for (let i = 0; i < domain.length; i++) hash = (hash * 31 + domain.charCodeAt(i)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 48%, 46%)`;
 }
 
 function formatDateOnly(dateStr) {

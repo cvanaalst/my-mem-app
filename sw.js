@@ -22,7 +22,7 @@
  * content updates (html/css/js) — network-first picks those up on its own.
  */
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const CACHE_NAME = `second-memory-shell-${CACHE_VERSION}`;
 
 // Paths are relative to sw.js's own scope, so this works whether the app
@@ -50,6 +50,7 @@ const SHELL_FILES = [
   "./view-add.js",
   "./view-settings.js",
   "./view-report.js",
+  "./fonts/fraunces-600-latin.woff2",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
