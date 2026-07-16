@@ -21,6 +21,7 @@
  */
 import { db } from "./db.js";
 import { mergeItemSets, computeMediaActions } from "./merge.js";
+import { isStandalone } from "./ui.js";
 
 /* ============================== CONFIG ==================================
  * Paste your own OAuth Client ID here (Google Cloud Console → APIs &
@@ -44,11 +45,6 @@ function emitStatus(status) {
 }
 
 /* --------------------------------------------------------------- token */
-
-function isStandalone() {
-  return window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-}
 
 function redirectUri() {
   // Must exactly match an "Authorized redirect URI" in the Google Cloud
@@ -343,9 +339,16 @@ export async function syncNow() {
       }
     }
 
-    // Persist merged metadata locally and back to Drive.
-    await db.putItems(merged);
-    await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: merged });
+    // Persist merged metadata locally and back to Drive. The media
+    // up/downloads above can take a while, and a local edit made during
+    // that window would be clobbered by writing back the now-stale
+    // `merged`. Re-read the current local snapshot and re-merge it against
+    // the same remote set right before persisting, so any such edit (with
+    // its newer updatedAt, or a fresh tombstone) wins over the stale copy.
+    const freshLocal = await db.getAllItems();
+    const { merged: finalMerged } = mergeItemSets(freshLocal, remoteItems);
+    await db.putItems(finalMerged);
+    await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: finalMerged });
 
     await db.setMeta("lastSyncAt", new Date().toISOString());
     emitStatus({ state: "success", stats });

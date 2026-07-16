@@ -20,6 +20,7 @@ const dict = {
     sortUpdatedAsc: "Langst geleden gewijzigd",
     filterDateRange: "Periode",
     clearFilters: "Wis filters",
+    filtersActive: "Filters actief ({count}) — tik om te wissen",
     noResults: "Geen resultaten voor deze zoekopdracht.",
 
     emptyList: "Nog niets opgeslagen. Tik op + om te beginnen.",
@@ -104,6 +105,7 @@ const dict = {
     printOverviewTitle: "Second Memory — Overzicht",
     printOverviewMeta: "{count} items — {date}",
     printOverviewEmpty: "Nog niets om af te drukken.",
+    printIncludeNoteText: "Notitietekst opnemen",
 
     appearance: "Weergave",
     themeDark: "Donker",
@@ -173,6 +175,7 @@ const dict = {
     sortUpdatedAsc: "Least recently modified",
     filterDateRange: "Date range",
     clearFilters: "Clear filters",
+    filtersActive: "Filters active ({count}) — tap to clear",
     noResults: "No results for this search.",
 
     emptyList: "Nothing saved yet. Tap + to get started.",
@@ -257,6 +260,7 @@ const dict = {
     printOverviewTitle: "Second Memory — Overview",
     printOverviewMeta: "{count} items — {date}",
     printOverviewEmpty: "Nothing to print yet.",
+    printIncludeNoteText: "Include note text",
 
     appearance: "Appearance",
     themeDark: "Dark",

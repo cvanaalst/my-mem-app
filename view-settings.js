@@ -25,6 +25,7 @@ const selectLanguage = document.getElementById("select-language");
 const selectDensity = document.getElementById("select-density");
 const storageInfoEl = document.getElementById("storage-info");
 const btnPrintOverview = document.getElementById("btn-print-overview");
+const togglePrintNoteText = document.getElementById("toggle-print-note-text");
 const printOverviewEl = document.getElementById("print-overview");
 
 const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", file: "typeFile" };
@@ -48,6 +49,9 @@ export function initSettingsView(handlers) {
   btnExportJson.addEventListener("click", () => exportData("json"));
   btnExportCsv.addEventListener("click", () => exportData("csv"));
   btnPrintOverview.addEventListener("click", printOverview);
+  togglePrintNoteText.addEventListener("change", () => {
+    db.setMeta("printIncludeNoteText", togglePrintNoteText.checked);
+  });
   window.addEventListener("afterprint", () => {
     document.body.classList.remove("printing-overview");
     printOverviewEl.innerHTML = "";
@@ -68,6 +72,7 @@ export function initSettingsView(handlers) {
 
 export async function refreshSettingsView() {
   toggleAutosync.checked = await db.getMeta("autoSyncOnLaunch", true);
+  togglePrintNoteText.checked = await db.getMeta("printIncludeNoteText", false);
   selectLanguage.value = state.lang;
   selectDensity.value = state.listDensity;
   highlightTheme(state.theme);
@@ -216,6 +221,7 @@ async function printOverview() {
     return;
   }
 
+  const includeNoteText = await db.getMeta("printIncludeNoteText", false);
   const locale = state.lang === "nl" ? "nl-NL" : "en-GB";
   const groups = TYPE_ORDER
     .map((type) => ({
@@ -230,7 +236,7 @@ async function printOverview() {
     .map(
       (group) => `<div class="print-overview-group">
         <h2>${escapeHtml(t(TYPE_LABEL_KEYS[group.type]))} (${group.items.length})</h2>
-        ${group.items.map(renderPrintOverviewItem).join("")}
+        ${group.items.map((item) => renderPrintOverviewItem(item, includeNoteText)).join("")}
       </div>`
     )
     .join("");
@@ -245,7 +251,7 @@ async function printOverview() {
   window.print();
 }
 
-function renderPrintOverviewItem(item) {
+function renderPrintOverviewItem(item, includeNoteText = false) {
   const tagsHtml = item.tags && item.tags.length > 0
     ? `<div class="print-overview-item-tags">${item.tags.map(escapeHtml).join(", ")}</div>`
     : "";
@@ -255,12 +261,16 @@ function renderPrintOverviewItem(item) {
   const commentHtml = item.comment
     ? `<div class="print-overview-item-comment">${escapeHtml(item.comment)}</div>`
     : "";
+  const noteHtml = includeNoteText && item.type === "text" && item.text
+    ? `<div class="print-overview-item-note">${escapeHtml(item.text)}</div>`
+    : "";
   return `<div class="print-overview-item">
     <div class="print-overview-item-title">${escapeHtml(item.title)}</div>
     ${urlHtml}
     ${tagsHtml}
     <div class="print-overview-item-meta">${escapeHtml(formatDate(item.createdAt))}</div>
     ${commentHtml}
+    ${noteHtml}
   </div>`;
 }
 

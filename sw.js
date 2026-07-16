@@ -22,11 +22,14 @@
  * content updates (html/css/js) — network-first picks those up on its own.
  */
 
-const CACHE_VERSION = "v3";
+const CACHE_VERSION = "v4";
 const CACHE_NAME = `second-memory-shell-${CACHE_VERSION}`;
 
 // Paths are relative to sw.js's own scope, so this works whether the app
 // is served from a domain root or a GitHub Pages subpath (/repo-name/).
+// Must list EVERY ES module the app imports — network-first backfills any
+// omission after a first online load, but a cold cache (installed, then
+// offline before a full load) would white-screen on a missing module.
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -35,6 +38,18 @@ const SHELL_FILES = [
   "./db.js",
   "./sync.js",
   "./i18n.js",
+  "./state.js",
+  "./ui.js",
+  "./merge.js",
+  "./markdown.js",
+  "./icons.js",
+  "./version.js",
+  "./view-list.js",
+  "./view-grid.js",
+  "./view-detail.js",
+  "./view-add.js",
+  "./view-settings.js",
+  "./view-report.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

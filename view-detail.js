@@ -5,7 +5,8 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml, typeIconSvg } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml } from "./ui.js";
+import { icons, typeIconSvg } from "./icons.js";
 import { renderMarkdown } from "./markdown.js";
 
 const { t } = i18n;
@@ -43,9 +44,6 @@ const linkPickerDialog = document.getElementById("link-picker-dialog");
 const linkPickerSearch = document.getElementById("link-picker-search");
 const linkPickerResults = document.getElementById("link-picker-results");
 const linkPickerCancel = document.getElementById("link-picker-cancel");
-
-const PENCIL_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-const EYE_ICON = '<svg viewBox="0 0 24 24" class="icon"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>';
 
 let tagWidget = null;
 let commentGrow = null;
@@ -189,13 +187,13 @@ function renderTextMode() {
   if (textViewMode === "edit") {
     textRendered.classList.add("hidden");
     textInput.classList.remove("hidden");
-    btnTextMode.innerHTML = EYE_ICON;
+    btnTextMode.innerHTML = icons.eye;
     btnTextMode.setAttribute("aria-label", t("previewText"));
   } else {
     textRendered.innerHTML = renderMarkdown(textInput.value);
     textRendered.classList.remove("hidden");
     textInput.classList.add("hidden");
-    btnTextMode.innerHTML = PENCIL_ICON;
+    btnTextMode.innerHTML = icons.pencil;
     btnTextMode.setAttribute("aria-label", t("editText"));
   }
 }
@@ -235,7 +233,7 @@ export async function openDetail(id) {
       mediaBox.classList.remove("hidden");
     }
   } else if (item.type === "file") {
-    mediaBox.innerHTML = `<div class="file-preview">${escapeName(item.filename || item.title)}</div>`;
+    mediaBox.innerHTML = `<div class="file-preview">${escapeHtml(item.filename || item.title)}</div>`;
     mediaBox.classList.remove("hidden");
   }
 
@@ -344,11 +342,5 @@ async function shareOrCopy(shareData, clipboardFallback) {
   } else {
     toast(t("shareNotSupported"), "error");
   }
-}
-
-function escapeName(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }
 

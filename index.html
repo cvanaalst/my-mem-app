@@ -70,6 +70,13 @@
     </div>
   </div>
 
+  <!-- Always-visible reminder that filters are hiding items (shown even
+       when the search bar is collapsed); tap anywhere on it to clear. -->
+  <button id="filter-active-bar" class="filter-active-bar hidden" type="button">
+    <span id="filter-active-text"></span>
+    <span class="filter-active-clear" aria-hidden="true">&times;</span>
+  </button>
+
   <!-- ===== Main content ===== -->
   <main class="content">
 
@@ -269,6 +276,10 @@
 
       <div class="settings-group">
         <h2 class="settings-heading" data-i18n="printing">Afdrukken</h2>
+        <label class="settings-row">
+          <span data-i18n="printIncludeNoteText">Notitietekst opnemen</span>
+          <input id="toggle-print-note-text" type="checkbox">
+        </label>
         <button type="button" id="btn-print-overview" class="secondary-btn full-width" data-i18n="printOverviewButton">Overzicht afdrukken</button>
       </div>
 

@@ -76,6 +76,16 @@ async function tx(storeNames, mode, work) {
 
 /* ---------------------------------------------------------------- items */
 
+/** Generate a unique id for a new item or media record. */
+function makeId() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 async function putItem(item) {
   return tx(["items"], "readwrite", (t) => requestToPromise(t.objectStore("items").put(item)));
 }
@@ -355,6 +365,21 @@ async function deleteMedia(id) {
   return tx(["media"], "readwrite", (t) => requestToPromise(t.objectStore("media").delete(id)));
 }
 
+/**
+ * Copy an existing media record under a fresh id. Used by undo-delete,
+ * which re-creates an item under a new id (so a tombstone can't re-kill
+ * it on the next sync) — the media must be copied too, because the old
+ * tombstoned item still references the original mediaId and sync would
+ * purge it. Returns the new mediaId, or null if the source is gone.
+ */
+async function cloneMedia(sourceId) {
+  const media = await getMedia(sourceId);
+  if (!media || !media.blob) return null;
+  const newId = makeId();
+  await putMedia({ id: newId, blob: media.blob, thumbnailBlob: media.thumbnailBlob || null });
+  return newId;
+}
+
 /* ----------------------------------------------------------------- meta */
 
 async function getMeta(key, defaultValue = null) {
@@ -459,6 +484,7 @@ async function getStorageEstimate() {
 
 export const db = {
   openDB,
+  makeId,
   putItem,
   putItems,
   findDuplicateLink,
@@ -478,6 +504,7 @@ export const db = {
   putMedia,
   getMedia,
   deleteMedia,
+  cloneMedia,
   getMeta,
   setMeta,
   makeFullImage,

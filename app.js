@@ -7,7 +7,8 @@
 import { db } from "./db.js";
 import { i18n } from "./i18n.js";
 import { state } from "./state.js";
-import { toast } from "./ui.js";
+import { toast, isStandalone } from "./ui.js";
+import { icons } from "./icons.js";
 import { sync } from "./sync.js";
 
 import { initListView, resetAndLoadList } from "./view-list.js";
@@ -88,11 +89,13 @@ function showView(name) {
     Object.values(views).forEach(clearTransitionClasses);
     Object.entries(views).forEach(([key, el]) => el.classList.toggle("hidden", key !== name));
     window.scrollTo(0, 0);
+    renderFilterIndicator();
     return;
   }
 
   animateViewSwap(fromEl, toEl, isForward, transitionGeneration);
   window.scrollTo(0, 0);
+  renderFilterIndicator();
 }
 
 function animateViewSwap(fromEl, toEl, isForward, myGen) {
@@ -131,24 +134,48 @@ function animateViewSwap(fromEl, toEl, isForward, myGen) {
 async function goList() { showView("list"); await resetAndLoadList(); }
 async function goGrid() { showView("grid"); await resetAndLoadGrid(); }
 async function goSettings() { showView("settings"); await refreshSettingsView(); }
-async function goAdd(prefill = null) { showView("add"); await openAdd(prefill); }
-async function goReport() { showView("report"); await refreshReportView(); }
 
-async function goDetail(id) {
+// The pushed views (detail/add/report) add a browser-history entry so the
+// hardware/browser Back button and edge back-swipe pop them instead of
+// leaving the PWA; chip-hopping between linked items therefore builds a
+// real back-stack. `push` is false only when the navigation is itself
+// being driven by a popstate (so we don't re-push what we just popped).
+async function goAdd(prefill = null, push = true) {
+  if (push) history.pushState({ smView: "add" }, "");
+  showView("add");
+  await openAdd(prefill);
+}
+async function goReport(push = true) {
+  if (push) history.pushState({ smView: "report" }, "");
+  showView("report");
+  await refreshReportView();
+}
+async function goDetail(id, push = true) {
+  if (push) history.pushState({ smView: "detail", id }, "");
   showView("detail");
   await openDetail(id);
 }
 
-function backFromDetailOrAdd() {
-  // Return to whichever tab was active before, defaulting to list.
-  const prev = appEl.dataset.prevTab || "list";
-  if (prev === "grid") goGrid(); else goList();
-}
+// Back/Cancel buttons just pop history; the popstate handler below does
+// the actual navigation, so in-app back and browser back share one path.
+function backFromDetailOrAdd() { history.back(); }
+function backFromReport() { history.back(); }
 
-// Reached only from a button inside Settings, so Back always returns there.
-function backFromReport() { goSettings(); }
+window.addEventListener("popstate", (e) => {
+  const s = e.state || {};
+  switch (s.smView) {
+    case "detail": if (s.id) goDetail(s.id, false); else goList(); break;
+    case "add": goAdd(null, false); break;
+    case "report": goReport(false); break;
+    case "grid": goGrid(); break;
+    case "settings": goSettings(); break;
+    case "list":
+    default: goList();
+  }
+});
 
 async function refreshCurrentView() {
+  renderFilterIndicator();
   const current = appEl.dataset.view;
   if (current === "list") await resetAndLoadList();
   else if (current === "grid") await resetAndLoadGrid();
@@ -161,10 +188,13 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
   const btn = e.target.closest(".tab-btn");
   if (!btn) return;
   const view = btn.dataset.view;
+  if (view === "add") { goAdd(); return; } // pushes on top of the current base
+  // The three base tabs are one history level: replace (not push) so the
+  // top entry always names the tab a pushed view will nest under.
   if (view === "list" || view === "grid") appEl.dataset.prevTab = view;
+  history.replaceState({ smView: view }, "");
   if (view === "list") goList();
   else if (view === "grid") goGrid();
-  else if (view === "add") goAdd();
   else if (view === "settings") goSettings();
 });
 
@@ -185,6 +215,8 @@ const sortSelect = document.getElementById("sort-select");
 const dateFromInput = document.getElementById("filter-date-from");
 const dateToInput = document.getElementById("filter-date-to");
 const btnClearFilters = document.getElementById("btn-clear-filters");
+const filterActiveBar = document.getElementById("filter-active-bar");
+const filterActiveText = document.getElementById("filter-active-text");
 
 let searchDebounce = null;
 
@@ -194,12 +226,9 @@ btnSearchToggle.addEventListener("click", () => {
 });
 
 // Icon shows the CURRENT density; tapping switches to the other one.
-const DENSITY_ICON_COMFORTABLE = '<svg viewBox="0 0 24 24" class="icon"><path d="M4 5h16v4H4V5zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>';
-const DENSITY_ICON_COMPACT = '<svg viewBox="0 0 24 24" class="icon"><path d="M4 4h16v2H4V4zm0 4h16v2H4V8zm0 4h16v2H4v-2zm0 4h16v2H4v-2zm0 4h16v2H4v-2z"/></svg>';
-
 function renderDensityToggle() {
   const isCompact = state.listDensity === "compact";
-  btnDensityToggle.innerHTML = isCompact ? DENSITY_ICON_COMPACT : DENSITY_ICON_COMFORTABLE;
+  btnDensityToggle.innerHTML = isCompact ? icons.densityCompact : icons.densityComfortable;
   btnDensityToggle.setAttribute("aria-label", t(isCompact ? "densityCompact" : "densityComfortable"));
 }
 
@@ -246,7 +275,7 @@ function syncSortAndDateInputs() {
   dateToInput.value = state.filters.dateTo || "";
 }
 
-btnClearFilters.addEventListener("click", () => {
+function clearAllFilters() {
   state.filters.tags = [];
   state.filters.type = null;
   state.filters.sortBy = "created";
@@ -256,7 +285,28 @@ btnClearFilters.addEventListener("click", () => {
   renderFilterChips();
   syncSortAndDateInputs();
   refreshCurrentView();
-});
+}
+
+btnClearFilters.addEventListener("click", clearAllFilters);
+filterActiveBar.addEventListener("click", clearAllFilters);
+
+// Count only the filters that actually HIDE items (type/tags/date range).
+// Sort isn't counted: it reorders rather than hides, and its current value
+// is already visible in the sort dropdown.
+function activeFilterCount() {
+  const { type, tags, dateFrom, dateTo } = state.filters;
+  return (type ? 1 : 0) + tags.length + (dateFrom ? 1 : 0) + (dateTo ? 1 : 0);
+}
+
+function renderFilterIndicator() {
+  const count = activeFilterCount();
+  // The bar lives above the scroll area (not inside it), so it's only
+  // meaningful on the two views the filters actually apply to.
+  const onListOrGrid = appEl.dataset.view === "list" || appEl.dataset.view === "grid";
+  btnFilterToggle.classList.toggle("has-active-filters", count > 0);
+  filterActiveBar.classList.toggle("hidden", count === 0 || !onListOrGrid);
+  if (count > 0) filterActiveText.textContent = t("filtersActive", { count });
+}
 
 async function activateTagFilter(tag) {
   searchbar.classList.remove("hidden");
@@ -280,8 +330,14 @@ async function togglePin(id, pinned) {
  * Shared delete-with-undo path — used by both the Detail view's Delete
  * button and swipe-to-delete on list cards, so there's exactly one place
  * that implements "tombstone now, purge media only if undo isn't used."
- * Deferring the media purge is what makes Undo actually restore the
- * item's image/file instead of leaving it gone.
+ *
+ * Undo RE-CREATES the item under a fresh id rather than clearing the
+ * tombstone's deletedAt: tombstone-always-wins means a resurrected item
+ * (same id) would be silently re-killed by the very next sync that saw
+ * its tombstone. A new id the tombstone can't reference sidesteps that
+ * entirely. For image/file items the media is cloned under a new id too,
+ * because the old tombstoned item still points at the original mediaId
+ * and sync would purge it (see db.cloneMedia).
  */
 async function deleteItemWithUndo(item) {
   const tombstoned = { ...item, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
@@ -291,7 +347,15 @@ async function deleteItemWithUndo(item) {
   toast(t("itemDeleted"), "success", {
     actionLabel: t("undo"),
     onAction: async () => {
-      await db.putItem({ ...tombstoned, deletedAt: null, updatedAt: new Date().toISOString() });
+      const now = new Date().toISOString();
+      const restored = { ...item, id: db.makeId(), deletedAt: null, updatedAt: now };
+      if (item.mediaId) {
+        restored.mediaId = (await db.cloneMedia(item.mediaId)) || null;
+      }
+      await db.putItem(restored);
+      // The original media is now orphaned by a live item (only the
+      // tombstone references it); purge it so it doesn't linger.
+      if (item.mediaId) await db.deleteMedia(item.mediaId);
       await refreshCurrentView();
     },
     onExpire: async () => {
@@ -365,11 +429,6 @@ async function setListDensity(density) {
 }
 
 /* -------------------------------------------------------- install hint */
-
-function isStandalone() {
-  return window.navigator.standalone === true ||
-    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
-}
 
 async function maybeShowInstallHint() {
   const dismissed = await db.getMeta("installHintDismissed", false);
@@ -481,7 +540,7 @@ async function boot() {
   initListView({ onOpenItem: goDetail, onTagClick: activateTagFilter, onTogglePin: togglePin, onSwipeDelete: deleteItemWithUndo });
   initGridView({ onOpenItem: goDetail });
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView, onDelete: deleteItemWithUndo, onNavigate: goDetail });
-  initAddView({ onSaved: goList, onCancel: backFromDetailOrAdd });
+  initAddView({ onSaved: () => history.back(), onCancel: backFromDetailOrAdd });
   initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
 
   window.addEventListener("sm:data-changed", refreshCurrentView);
@@ -491,10 +550,15 @@ async function boot() {
   await maybeShowInstallHint();
 
   const addPrefill = parseAddHash();
+
+  // Establish the base history entry (also strips any #add deep-link hash
+  // from the URL, read just above). Pushed views nest on top of this;
+  // browser Back from the base list exits, as expected for a top-level tab.
+  history.replaceState({ smView: "list" }, "", window.location.pathname + window.location.search);
+
   if (addPrefill) {
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
     appEl.dataset.prevTab = "list";
-    await goAdd(addPrefill);
+    await goAdd(addPrefill); // pushes add on top of the list base
   } else {
     await goList();
   }

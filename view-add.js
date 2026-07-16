@@ -4,7 +4,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, setupTagInput, openInNewTab, autoGrowTextarea } from "./ui.js";
+import { toast, confirmDialog, setupTagInput, openInNewTab, autoGrowTextarea, escapeHtml } from "./ui.js";
 
 const { t } = i18n;
 
@@ -141,7 +141,7 @@ function handleFileSelect() {
     if (!proceed) { fileInput.value = ""; return; }
   }
   state.addFileFile = file;
-  filePreview.innerHTML = `${escapeName(file.name)} (${(sizeMb).toFixed(2)} MB)`;
+  filePreview.innerHTML = `${escapeHtml(file.name)} (${(sizeMb).toFixed(2)} MB)`;
   filePreview.classList.remove("hidden");
   if (!titleInput.value) titleInput.value = file.name.replace(/\.[^.]+$/, "");
 }
@@ -164,7 +164,7 @@ async function handleSave(e) {
 
   const now = new Date().toISOString();
   const item = {
-    id: makeId(),
+    id: db.makeId(),
     type,
     title: titleInput.value.trim(),
     comment: commentInput.value.trim(),
@@ -186,14 +186,14 @@ async function handleSave(e) {
     const file = state.addImageFile;
     const fullBlob = await db.makeFullImage(file);
     const thumbBlob = await db.makeThumbnail(file);
-    const mediaId = makeId();
+    const mediaId = db.makeId();
     await db.putMedia({ id: mediaId, blob: fullBlob, thumbnailBlob: thumbBlob });
     item.mediaId = mediaId;
     item.filename = file.name;
     item.mimeType = "image/jpeg";
   } else if (type === "file") {
     const file = state.addFileFile;
-    const mediaId = makeId();
+    const mediaId = db.makeId();
     await db.putMedia({ id: mediaId, blob: file, thumbnailBlob: null });
     item.mediaId = mediaId;
     item.filename = file.name;
@@ -204,19 +204,4 @@ async function handleSave(e) {
   toast(t("itemSaved"), "success");
   resetForm();
   onSaved();
-}
-
-function makeId() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-function escapeName(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
 }

@@ -5,7 +5,8 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { formatDate, typeIconSvg } from "./ui.js";
+import { formatDate } from "./ui.js";
+import { icons, typeIconSvg } from "./icons.js";
 
 const { t } = i18n;
 
@@ -156,14 +157,14 @@ function renderCard(item) {
     const linkBadge = document.createElement("span");
     linkBadge.className = "item-card-link-badge";
     linkBadge.setAttribute("aria-label", t("hasLinkedItems"));
-    linkBadge.innerHTML = '<svg viewBox="0 0 24 24" class="icon"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>';
+    linkBadge.innerHTML = icons.linkBadge;
     actions.appendChild(linkBadge);
   }
 
   const pinBtn = document.createElement("button");
   pinBtn.type = "button";
   pinBtn.className = `item-card-pin${item.pinned ? " active" : ""}`;
-  pinBtn.innerHTML = '<svg viewBox="0 0 24 24" class="icon"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>';
+  pinBtn.innerHTML = icons.pin;
   pinBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     onTogglePin(item.id, !item.pinned);

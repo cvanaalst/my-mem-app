@@ -240,6 +240,41 @@ button, input, textarea, select {
 .date-input { flex: 1; font-size: 14px; padding: 8px 10px; }
 .date-range-sep { color: var(--text-secondary); }
 
+/* Accent dot on the filter icon when hiding filters are active. */
+#btn-filter-toggle { position: relative; }
+#btn-filter-toggle.has-active-filters::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--bg);
+}
+
+/* Always-visible active-filter bar (tap to clear). */
+.filter-active-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: calc(100% - 32px);
+  margin: 8px 16px 0;
+  padding: 8px 12px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.filter-active-bar:active { transform: scale(0.99); }
+.filter-active-clear { font-size: 18px; line-height: 1; opacity: 0.8; }
+
 .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .chip {
@@ -869,4 +904,5 @@ button, input, textarea, select {
   .print-overview-item-meta { font-size: 11px; color: #555; margin: 1px 0; }
   .print-overview-item-tags { font-size: 11px; font-weight: 700; color: #333; }
   .print-overview-item-comment { font-size: 12px; color: #222; margin: 2px 0 0; white-space: pre-wrap; }
+  .print-overview-item-note { font-size: 12px; color: #000; margin: 4px 0 0; padding-left: 8px; border-left: 2px solid #ccc; white-space: pre-wrap; }
 }
