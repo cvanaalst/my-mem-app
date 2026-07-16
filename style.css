@@ -255,7 +255,14 @@ button, input, textarea, select {
 }
 .chip:active { transform: scale(0.94); }
 .chip.active { background: var(--accent); color: var(--accent-text); }
-.chip.removable { display: flex; align-items: center; gap: 4px; }
+.chip.removable {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--tag-bg);
+  color: var(--tag-text);
+  font-weight: 700;
+}
 .chip .chip-remove { font-weight: 700; opacity: 0.7; }
 
 .text-btn {
