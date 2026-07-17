@@ -647,6 +647,23 @@ button, input, textarea, select {
 .markdown-rendered p:last-child { margin-bottom: 0; }
 .markdown-rendered ul, .markdown-rendered ol { margin: 0 0 0.6em; padding-left: 1.3em; }
 .markdown-rendered a { color: var(--accent); }
+
+/* Help screen: reuses the Markdown renderer, but it's a document, not a
+   form field — so drop the input-box chrome .markdown-rendered carries for
+   the note preview, and give it a comfortable measure for long-form reading. */
+.help-body {
+  background: none;
+  border: none;
+  min-height: 0;
+  max-width: 62ch;
+  margin: 0 auto;
+  padding: 4px 0 24px;
+  line-height: 1.6;
+}
+.help-body h1 { font-family: var(--font-display); font-size: 1.6em; letter-spacing: -0.01em; }
+.help-body h2 { font-family: var(--font-display); margin-top: 1.5em; }
+.help-body ul { padding-left: 1.1em; }
+.help-body li { margin-bottom: 0.4em; }
 .markdown-rendered strong { font-weight: 700; }
 .markdown-rendered em { font-style: italic; }
 

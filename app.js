@@ -17,6 +17,8 @@ import { initDetailView, openDetail, shareItem } from "./view-detail.js";
 import { initAddView, openAdd } from "./view-add.js";
 import { initSettingsView, refreshSettingsView } from "./view-settings.js";
 import { refreshReportView } from "./view-report.js";
+import { renderMarkdown } from "./markdown.js";
+import { HELP_CONTENT } from "./help.js";
 
 const { t } = i18n;
 
@@ -28,6 +30,7 @@ const views = {
   add: document.getElementById("view-add"),
   settings: document.getElementById("view-settings"),
   report: document.getElementById("view-report"),
+  help: document.getElementById("view-help"),
 };
 const tabButtons = document.querySelectorAll(".tab-btn");
 
@@ -37,7 +40,7 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 // popped back via Back/Cancel) — those transitions slide like native iOS
 // navigation. Switching between tab-bar destinations (list/grid/settings)
 // stays instant, matching how iOS tab bars behave (no slide between tabs).
-const PUSH_TARGETS = new Set(["detail", "add", "report"]);
+const PUSH_TARGETS = new Set(["detail", "add", "report", "help"]);
 
 // Scroll offset per base tab, so returning from a pushed view lands where
 // you left the list — while a freshly-opened detail/add always starts at
@@ -117,11 +120,25 @@ async function goDetail(id, push = true) {
   showView("detail");
   await openDetail(id);
 }
+function goHelp(push = true) {
+  if (push) history.pushState({ smView: "help" }, "");
+  showView("help");
+  renderHelp();
+}
+
+// The help text is long-form prose, so it's authored as Markdown (help.js)
+// and rendered with the same minimal renderer the text items use, rather
+// than being spread across dozens of i18n keys.
+function renderHelp() {
+  const content = HELP_CONTENT[i18n.getLang()] || HELP_CONTENT.nl;
+  document.getElementById("help-body").innerHTML = renderMarkdown(content);
+}
 
 // Back/Cancel buttons just pop history; the popstate handler below does
 // the actual navigation, so in-app back and browser back share one path.
 function backFromDetailOrAdd() { history.back(); }
 function backFromReport() { history.back(); }
+function backFromHelp() { history.back(); }
 
 window.addEventListener("popstate", (e) => {
   const s = e.state || {};
@@ -129,6 +146,7 @@ window.addEventListener("popstate", (e) => {
     case "detail": if (s.id) goDetail(s.id, false); else goList(); break;
     case "add": goAdd(null, false); break;
     case "report": goReport(false); break;
+    case "help": goHelp(false); break;
     case "grid": goGrid(); break;
     case "settings": goSettings(); break;
     case "list":
@@ -160,8 +178,12 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
   else if (view === "settings") goSettings();
 });
 
-document.getElementById("btn-view-report").addEventListener("click", goReport);
+// Wrapped, not passed directly: the handler's MouseEvent would land in the
+// `push` parameter.
+document.getElementById("btn-view-report").addEventListener("click", () => goReport());
 document.getElementById("btn-report-back").addEventListener("click", backFromReport);
+document.getElementById("btn-view-help").addEventListener("click", () => goHelp());
+document.getElementById("btn-help-back").addEventListener("click", backFromHelp);
 
 /* ------------------------------------------------------- search/filter */
 

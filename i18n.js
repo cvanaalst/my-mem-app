@@ -138,6 +138,10 @@ const dict = {
     reportTags: "Tags",
     reportNoTags: "Nog geen tags.",
 
+    help: "Help",
+    helpButton: "Hoe werkt deze app?",
+    helpTitle: "Help",
+
     about: "Over",
     aboutText: "Second Memory — je persoonlijke, privé geheugen. Alle data blijft op je toestel en in jouw Google Drive.",
     versionInfo: "Ontworpen door {designer} — {date}, build {build}",
@@ -297,6 +301,10 @@ const dict = {
     reportOverTime: "Captured per week",
     reportTags: "Tags",
     reportNoTags: "No tags yet.",
+
+    help: "Help",
+    helpButton: "How does this app work?",
+    helpTitle: "Help",
 
     about: "About",
     aboutText: "Second Memory — your personal, private memory. All data stays on your device and in your own Google Drive.",
