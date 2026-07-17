@@ -314,19 +314,51 @@ async function togglePin(id, pinned) {
  * until you edit it), anything else as a text note titled from its first
  * line. "Meer opties" hands off to the full Add form with what you typed
  * already filled in, so nothing is lost by starting here.
- *
- * Deliberately no clipboard auto-read: navigator.clipboard.readText() was
- * tried before in this app and removed for silently failing inside the iOS
- * PWA (see the paste-button history), so the sheet doesn't depend on it.
  */
 const quickSheet = document.getElementById("quick-sheet");
 const quickInput = document.getElementById("quick-input");
 const quickSave = document.getElementById("quick-save");
 const quickMore = document.getElementById("quick-more");
+const quickHint = document.getElementById("quick-hint");
 let releaseQuickFocus = null;
+
+const URL_RE = /^https?:\/\/\S+$/i;
+
+/**
+ * Offer the clipboard's contents if they're a URL, so capturing a link you
+ * just copied is a single tap.
+ *
+ * The read MUST be kicked off synchronously inside the tap that opened the
+ * sheet — the same "user activation" trap that silently broke the open-file
+ * buttons: once you await anything first, iOS treats the read as
+ * un-gestured and it fails with no error to catch. iOS also shows its own
+ * native Paste confirmation, so this can legitimately never resolve if the
+ * user ignores it; every failure path just leaves the field empty and the
+ * hint hidden, which is exactly the pre-clipboard behaviour.
+ */
+function offerClipboardUrl() {
+  quickHint.classList.add("hidden");
+  if (!navigator.clipboard || !navigator.clipboard.readText) return;
+  let read;
+  try {
+    read = navigator.clipboard.readText(); // started inside the gesture
+  } catch (_) {
+    return; // some engines throw synchronously when the API is blocked
+  }
+  read.then((text) => {
+    const value = (text || "").trim();
+    // Don't clobber: the paste prompt can outlive the tap, and the user may
+    // have started typing (or closed the sheet) while it was up.
+    if (!URL_RE.test(value)) return;
+    if (quickSheet.classList.contains("hidden") || quickInput.value !== "") return;
+    quickInput.value = value;
+    quickHint.classList.remove("hidden");
+  }).catch(() => { /* denied, dismissed, or unsupported — type it instead */ });
+}
 
 function openQuickSheet() {
   quickInput.value = "";
+  offerClipboardUrl(); // first: keeps the user activation alive
   quickSheet.classList.remove("hidden");
   releaseQuickFocus = trapFocus(quickSheet, closeQuickSheet);
   quickInput.focus();
@@ -340,6 +372,9 @@ function closeQuickSheet() {
 quickSheet.addEventListener("click", (e) => {
   if (e.target === quickSheet) closeQuickSheet(); // tap the backdrop
 });
+
+// Once you edit the field, the "from clipboard" note no longer describes it.
+quickInput.addEventListener("input", () => quickHint.classList.add("hidden"));
 
 /** Parses the sheet's single field into the shape the Add form expects. */
 function parseQuickInput(raw) {

@@ -1004,6 +1004,7 @@ button, input, textarea, select {
 }
 .quick-sheet-title { font-family: var(--font-display); font-size: 17px; font-weight: 600; margin: 0 0 10px; }
 .quick-input { width: 100%; resize: none; font-size: 16px; }
+.quick-hint { margin: 8px 0 0; font-size: 12px; font-weight: 600; color: var(--tag-text); }
 .quick-sheet-actions { display: flex; gap: 10px; margin-top: 12px; }
 .quick-sheet-actions > * { flex: 1; }
 @media (min-width: 560px) {
