@@ -324,36 +324,68 @@ let releaseQuickFocus = null;
 
 const URL_RE = /^https?:\/\/\S+$/i;
 
+/** Pull the first usable URL/text out of a ClipboardItem list. */
+async function pickClipboardUrl(items) {
+  // Prefer the URL flavour: a link copied out of iOS Safari via share→Copy
+  // lands on the pasteboard as a URL with NO plain-text twin, so readText()
+  // alone resolved to "" for exactly those (while links copied from apps
+  // that copy plain text — Instagram, Facebook, Chrome — came through fine).
+  for (const item of items) {
+    if (!item.types.includes("text/uri-list")) continue;
+    const blob = await item.getType("text/uri-list");
+    const text = await blob.text();
+    // uri-list is line-based; lines starting with # are comments.
+    const url = text.split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith("#"));
+    if (url) return url;
+  }
+  for (const item of items) {
+    if (!item.types.includes("text/plain")) continue;
+    return (await (await item.getType("text/plain")).text());
+  }
+  return "";
+}
+
+/**
+ * Ask the clipboard for a URL.
+ *
+ * Both reads are kicked off synchronously and raced, rather than tried one
+ * after the other: the reads must start inside the tap that opened the
+ * sheet — the same "user activation" trap that silently broke the open-file
+ * buttons — and once you await the first, the gesture is spent and the
+ * second would be refused. Racing them means read() can add the Safari URL
+ * case without risking the readText() cases that already work.
+ */
+function readClipboardUrl() {
+  const clip = navigator.clipboard;
+  if (!clip) return Promise.resolve("");
+  let rich = Promise.resolve("");
+  let plain = Promise.resolve("");
+  try {
+    if (clip.read) rich = clip.read().then(pickClipboardUrl).catch(() => "");
+    if (clip.readText) plain = clip.readText().catch(() => "");
+  } catch (_) {
+    // Some engines throw synchronously when the API is blocked outright.
+  }
+  return Promise.all([rich, plain]).then(([a, b]) => a || b);
+}
+
 /**
  * Offer the clipboard's contents if they're a URL, so capturing a link you
- * just copied is a single tap.
- *
- * The read MUST be kicked off synchronously inside the tap that opened the
- * sheet — the same "user activation" trap that silently broke the open-file
- * buttons: once you await anything first, iOS treats the read as
- * un-gestured and it fails with no error to catch. iOS also shows its own
- * native Paste confirmation, so this can legitimately never resolve if the
- * user ignores it; every failure path just leaves the field empty and the
- * hint hidden, which is exactly the pre-clipboard behaviour.
+ * just copied is a single tap. Every failure path (blocked, denied, iOS's
+ * Paste confirmation ignored, non-URL content) just leaves the field empty
+ * and the hint hidden — exactly the pre-clipboard behaviour.
  */
 function offerClipboardUrl() {
   quickHint.classList.add("hidden");
-  if (!navigator.clipboard || !navigator.clipboard.readText) return;
-  let read;
-  try {
-    read = navigator.clipboard.readText(); // started inside the gesture
-  } catch (_) {
-    return; // some engines throw synchronously when the API is blocked
-  }
-  read.then((text) => {
+  readClipboardUrl().then((text) => {
     const value = (text || "").trim();
+    if (!URL_RE.test(value)) return;
     // Don't clobber: the paste prompt can outlive the tap, and the user may
     // have started typing (or closed the sheet) while it was up.
-    if (!URL_RE.test(value)) return;
     if (quickSheet.classList.contains("hidden") || quickInput.value !== "") return;
     quickInput.value = value;
     quickHint.classList.remove("hidden");
-  }).catch(() => { /* denied, dismissed, or unsupported — type it instead */ });
+  }).catch(() => { /* nothing usable — type it instead */ });
 }
 
 function openQuickSheet() {
