@@ -81,10 +81,21 @@ export function initDetailView(handlers) {
   tagsInput.addEventListener("input", () => tagWidget.renderSuggestions(currentAllTags));
   commentGrow = autoGrowTextarea(commentInput);
 
-  // Ticking a checkbox persists immediately — a shopping list you tick then
-  // navigate away from must stick without hitting Save. Row text add/edit/
-  // delete still ride the Save button like every other field.
-  listWidget = setupChecklist(listContainer, { onToggle: persistListToggle });
+  // Ticking a checkbox — or setting/removing a row's link — persists
+  // immediately: a shopping list you tick, or a row you link then tap
+  // through, must stick without hitting Save. Row text add/edit/delete
+  // still ride the Save button like every other field.
+  //   pickLink  -> opens the shared picker, resolves with the chosen id
+  //   onNavigate-> tapping a linked row opens that entry (persist first so
+  //                the freshly-set link and any pending edits aren't lost)
+  listWidget = setupChecklist(listContainer, {
+    onPersist: persistListItems,
+    pickLink: () => pickLinkTarget(),
+    onNavigate: async (linkedId) => {
+      await persistListItems(listWidget.getItems());
+      onNavigate(linkedId);
+    },
+  });
 
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
@@ -107,7 +118,7 @@ export function initDetailView(handlers) {
   btnOpenMedia.addEventListener("click", handleOpenMedia);
   form.addEventListener("submit", handleSave);
 
-  btnAddLink.addEventListener("click", openLinkPicker);
+  btnAddLink.addEventListener("click", openItemLinkPicker);
   linkPickerCancel.addEventListener("click", closeLinkPicker);
   linkPickerSearch.addEventListener("input", () => renderLinkPickerResults(linkPickerSearch.value.trim()));
 }
@@ -152,7 +163,18 @@ function renderBacklinks(backlinks) {
   }
 }
 
-function openLinkPicker() {
+// The picker is shared by item-level linking ("Koppeling toevoegen") and
+// per-row checklist links, so its behaviour is passed in: `pickerExclude`
+// hides ids that shouldn't be offered, and `pickerOnPick(item)` runs when a
+// result is chosen.
+let pickerExclude = new Set();
+let pickerOnPick = () => {};
+let pickerOnClose = null;
+
+function openLinkPicker(opts = {}) {
+  pickerExclude = opts.excludeIds || new Set();
+  pickerOnPick = opts.onPick || (() => {});
+  pickerOnClose = opts.onClose || null;
   linkPickerSearch.value = "";
   linkPickerDialog.classList.remove("hidden");
   releaseLinkPickerFocus = trapFocus(linkPickerDialog, closeLinkPicker);
@@ -163,12 +185,14 @@ function openLinkPicker() {
 function closeLinkPicker() {
   if (releaseLinkPickerFocus) { releaseLinkPickerFocus(); releaseLinkPickerFocus = null; }
   linkPickerDialog.classList.add("hidden");
+  const cb = pickerOnClose;
+  pickerOnClose = null;
+  if (cb) cb(); // resolves pickLinkTarget with undefined when dismissed
 }
 
 async function renderLinkPickerResults(query) {
   const { results } = await db.queryItems({ search: query, limit: 50 });
-  const excludeIds = new Set([currentItem.id, ...linkedItems.map((x) => x.id)]);
-  const candidates = results.filter((item) => !excludeIds.has(item.id));
+  const candidates = results.filter((item) => !pickerExclude.has(item.id));
 
   linkPickerResults.innerHTML = "";
   if (candidates.length === 0) {
@@ -180,12 +204,41 @@ async function renderLinkPickerResults(query) {
     row.className = "link-picker-result-row";
     row.innerHTML = `<svg viewBox="0 0 24 24" class="icon">${typeIconSvg(item.type)}</svg><span>${escapeHtml(item.title)}</span>`;
     row.addEventListener("click", () => {
-      linkedItems.push({ id: item.id, title: item.title, type: item.type });
-      renderLinks();
+      // Deliver the pick before closing — closeLinkPicker() fires the
+      // onClose callback (which resolves pickLinkTarget with undefined),
+      // so onPick must win first.
+      const onPick = pickerOnPick;
+      pickerOnPick = () => {};
+      onPick(item);
       closeLinkPicker();
     });
     linkPickerResults.appendChild(row);
   }
+}
+
+// Item-level "Koppeling toevoegen": add the chosen entry to this item's links.
+function openItemLinkPicker() {
+  openLinkPicker({
+    excludeIds: new Set([currentItem.id, ...linkedItems.map((x) => x.id)]),
+    onPick: (item) => {
+      linkedItems.push({ id: item.id, title: item.title, type: item.type });
+      renderLinks();
+    },
+  });
+}
+
+// Promise wrapper for the checklist: resolves with the picked id, or
+// undefined if the picker is dismissed without a choice.
+function pickLinkTarget() {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+    openLinkPicker({
+      excludeIds: new Set([currentItem.id]),
+      onPick: (item) => finish(item.id),
+      onClose: () => finish(undefined),
+    });
+  });
 }
 
 /**
@@ -234,7 +287,10 @@ export async function openDetail(id) {
     textViewMode = "rendered";
     renderTextMode();
   }
-  listWidget.setItems(item.type === "list" ? (item.listItems || []) : []);
+  // Drop row links whose target no longer exists, mirroring how item-level
+  // links are cleaned at render (not persisted until the next Save).
+  const listRows = item.type === "list" ? await withLiveRowLinks(item.listItems || []) : [];
+  listWidget.setItems(listRows);
 
   mediaBox.classList.add("hidden");
   mediaBox.innerHTML = "";
@@ -277,12 +333,23 @@ export async function openDetail(id) {
 }
 
 /**
- * Write a checkbox change straight through, without waiting for Save.
- * Merges only the listItems (and updatedAt) onto whatever's in the DB, so
- * it doesn't clobber a concurrent edit, and refreshes the list card's
- * progress. currentItem is kept in sync so a later Save doesn't revert it.
+ * Write an immediate list change (checkbox tick, or a row link set/removed)
+ * straight through, without waiting for Save. Merges only the listItems
+ * (and updatedAt) onto whatever's in the DB, so it doesn't clobber a
+ * concurrent edit, and refreshes the list card's progress. currentItem is
+ * kept in sync so a later Save doesn't revert it.
  */
-async function persistListToggle(items) {
+/** Returns a copy of the rows with linkedIds cleared where the target no
+ *  longer exists (or is tombstoned), so a dead link stops showing as one. */
+async function withLiveRowLinks(listItems) {
+  return Promise.all((listItems || []).map(async (row) => {
+    if (!row.linkedId) return row;
+    const target = await db.getItem(row.linkedId);
+    return (target && !target.deletedAt) ? row : { ...row, linkedId: null };
+  }));
+}
+
+async function persistListItems(items) {
   if (!currentItem || currentItem.type !== "list") return;
   const fresh = (await db.getItem(currentItem.id)) || currentItem;
   const updated = { ...fresh, listItems: items, updatedAt: new Date().toISOString() };

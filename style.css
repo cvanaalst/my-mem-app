@@ -787,6 +787,19 @@ button, input, textarea, select {
 }
 .checklist-text:focus { outline: none; border-color: var(--accent); }
 .checklist-row.done .checklist-text { color: var(--text-tertiary); text-decoration: line-through; }
+.checklist-link {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+}
+.checklist-link .icon { width: 18px; height: 18px; }
+.checklist-link.linked { color: var(--accent); }
 .checklist-del {
   flex-shrink: 0;
   background: none;

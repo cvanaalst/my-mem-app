@@ -61,6 +61,9 @@ const dict = {
     listAddRow: "Item toevoegen…",
     listProgress: "{done} van {total} gedaan",
     listEmpty: "Nog geen items.",
+    rowAddLink: "Koppel aan een item",
+    rowOpenLink: "Open gekoppeld item (houd ingedrukt om los te maken)",
+    rowLinkRemoved: "Koppeling verwijderd",
     titleRequired: "Titel is verplicht.",
 
     addTitle: "Nieuw item",
@@ -230,6 +233,9 @@ const dict = {
     listAddRow: "Add item…",
     listProgress: "{done} of {total} done",
     listEmpty: "No items yet.",
+    rowAddLink: "Link to an item",
+    rowOpenLink: "Open linked item (hold to unlink)",
+    rowLinkRemoved: "Link removed",
     titleRequired: "Title is required.",
 
     addTitle: "New item",

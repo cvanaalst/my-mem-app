@@ -3,6 +3,7 @@
  * widgets, date formatting. Used by every view module.
  */
 import { i18n } from "./i18n.js";
+import { icons } from "./icons.js";
 
 const { t } = i18n;
 
@@ -286,14 +287,22 @@ export function setupTagInput(inputEl, chipRowEl, suggestionRowEl, initialTags =
  *
  * Structural changes (add/delete/toggle) re-render; typing does NOT (it
  * mutates the row object in place) so the caret is never disturbed.
- * opts.onToggle fires when a checkbox flips — the Detail view uses it to
- * persist a tick immediately, without waiting for Save.
+ *
+ * opts:
+ *   onPersist(items) — an immediate-persist event (checkbox tick, or a row
+ *                      link set/removed); the Detail view writes through.
+ *   onChange()       — a structural text edit (add/edit/delete row), which
+ *                      the Detail view saves only on its Save button.
+ *   pickLink(row)    — if given, each row shows a link button; returns a
+ *                      Promise of the chosen entry id (or undefined).
+ *   onNavigate(id)   — open a linked entry (tapping an already-linked row).
  *
  * Row ids are local only (for render keying); they're not cross-item
- * references, so a lightweight generator is fine.
+ * references, so a lightweight generator is fine. row.linkedId, when set,
+ * IS a cross-item reference (another entry's id).
  */
 export function setupChecklist(container, opts = {}) {
-  const { onToggle = () => {}, onChange = () => {} } = opts;
+  const { onPersist = () => {}, onChange = () => {}, pickLink = null, onNavigate = () => {} } = opts;
   let rows = [];
   let addInputEl = null;  // the pending "add item" field (re-created each render)
   let focusRowId = null;  // id of the row whose text input to focus after render
@@ -315,7 +324,7 @@ export function setupChecklist(container, opts = {}) {
       check.addEventListener("change", () => {
         row.done = check.checked;
         el.classList.toggle("done", row.done);
-        onToggle(getItems());
+        onPersist(getItems());
       });
 
       const text = document.createElement("input");
@@ -342,6 +351,22 @@ export function setupChecklist(container, opts = {}) {
         }
       });
 
+      el.append(check, text);
+
+      // Per-row link button (only when the host provides a picker — the Add
+      // view doesn't, so its rows stay a plain checkbox+text+delete). Tap an
+      // unlinked row to pick a target; tap a linked one to open it; hold to
+      // remove the link. State is shown only by colour, to keep one line.
+      if (pickLink) {
+        const linkBtn = document.createElement("button");
+        linkBtn.type = "button";
+        linkBtn.className = "checklist-link" + (row.linkedId ? " linked" : "");
+        linkBtn.setAttribute("aria-label", t(row.linkedId ? "rowOpenLink" : "rowAddLink"));
+        linkBtn.innerHTML = icons.linkBadge;
+        attachRowLink(linkBtn, row);
+        el.appendChild(linkBtn);
+      }
+
       const del = document.createElement("button");
       del.type = "button";
       del.className = "checklist-del";
@@ -353,7 +378,7 @@ export function setupChecklist(container, opts = {}) {
         onChange();
       });
 
-      el.append(check, text, del);
+      el.appendChild(del);
       container.appendChild(el);
     }
 
@@ -396,13 +421,52 @@ export function setupChecklist(container, opts = {}) {
     focusAtEnd = false;
   }
 
+  // Link button: tap unlinked -> pick a target; tap linked -> open it; hold
+  // (500ms) linked -> remove the link. Setting/removing a link persists
+  // immediately (like a checkbox tick), so tapping through to the target
+  // can't lose it.
+  function attachRowLink(btn, row) {
+    let holdTimer = null;
+    let held = false;
+    const startHold = () => {
+      if (!row.linkedId) return;
+      held = false;
+      holdTimer = setTimeout(() => {
+        held = true;
+        row.linkedId = null;
+        if (navigator.vibrate) navigator.vibrate(8);
+        render();
+        onPersist(getItems());
+        toast(t("rowLinkRemoved"), "default");
+      }, 500);
+    };
+    const cancelHold = () => clearTimeout(holdTimer);
+    btn.addEventListener("touchstart", startHold, { passive: true });
+    btn.addEventListener("touchmove", cancelHold, { passive: true });
+    btn.addEventListener("touchend", cancelHold);
+    btn.addEventListener("mousedown", startHold);
+    btn.addEventListener("mouseup", cancelHold);
+    btn.addEventListener("mouseleave", cancelHold);
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (held) { held = false; return; } // the hold already removed the link
+      if (row.linkedId) { onNavigate(row.linkedId); return; }
+      const chosen = await pickLink(row);
+      if (chosen) {
+        row.linkedId = chosen;
+        render();
+        onPersist(getItems());
+      }
+    });
+  }
+
   function getItems() {
     const out = rows
-      .map((r) => ({ id: r.id, text: r.text.trim(), done: !!r.done }))
+      .map((r) => ({ id: r.id, text: r.text.trim(), done: !!r.done, linkedId: r.linkedId || null }))
       .filter((r) => r.text !== "");
     // Include a row typed into the add field but not yet committed with Enter.
     const pending = addInputEl && addInputEl.value.trim();
-    if (pending) out.push({ id: rowId(), text: pending, done: false });
+    if (pending) out.push({ id: rowId(), text: pending, done: false, linkedId: null });
     return out;
   }
 
@@ -411,7 +475,7 @@ export function setupChecklist(container, opts = {}) {
   return {
     getItems,
     setItems(items) {
-      rows = (items || []).map((r) => ({ id: r.id || rowId(), text: r.text || "", done: !!r.done }));
+      rows = (items || []).map((r) => ({ id: r.id || rowId(), text: r.text || "", done: !!r.done, linkedId: r.linkedId || null }));
       focusRowId = null;
       render();
     },
