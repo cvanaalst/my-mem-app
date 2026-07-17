@@ -275,6 +275,149 @@ export function setupTagInput(inputEl, chipRowEl, suggestionRowEl, initialTags =
   };
 }
 
+/* -------------------------------------------------------------- checklist */
+
+/**
+ * Wires a container into an editable checklist (the "list" item type):
+ * rows of { id, text, done } plus an always-present "add item" input for
+ * fast entry. Same create-once/reset-per-open contract as setupTagInput —
+ * the widget is built once at view-init and reused via setItems() on each
+ * open, so its listeners don't accumulate.
+ *
+ * Structural changes (add/delete/toggle) re-render; typing does NOT (it
+ * mutates the row object in place) so the caret is never disturbed.
+ * opts.onToggle fires when a checkbox flips — the Detail view uses it to
+ * persist a tick immediately, without waiting for Save.
+ *
+ * Row ids are local only (for render keying); they're not cross-item
+ * references, so a lightweight generator is fine.
+ */
+export function setupChecklist(container, opts = {}) {
+  const { onToggle = () => {}, onChange = () => {} } = opts;
+  let rows = [];
+  let addInputEl = null;  // the pending "add item" field (re-created each render)
+  let focusRowId = null;  // id of the row whose text input to focus after render
+  let focusAtEnd = false;
+
+  const rowId = () => "r" + Math.random().toString(36).slice(2, 10);
+
+  function render() {
+    container.innerHTML = "";
+    for (const row of rows) {
+      const el = document.createElement("div");
+      el.className = "checklist-row" + (row.done ? " done" : "");
+      el.dataset.id = row.id;
+
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.className = "checklist-check";
+      check.checked = !!row.done;
+      check.addEventListener("change", () => {
+        row.done = check.checked;
+        el.classList.toggle("done", row.done);
+        onToggle(getItems());
+      });
+
+      const text = document.createElement("input");
+      text.type = "text";
+      text.className = "checklist-text";
+      text.value = row.text;
+      text.addEventListener("input", () => { row.text = text.value; }); // no re-render
+      text.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          const idx = rows.indexOf(row);
+          const nr = { id: rowId(), text: "", done: false };
+          rows.splice(idx + 1, 0, nr);
+          focusRowId = nr.id;
+          render();
+          onChange();
+        } else if (e.key === "Backspace" && text.value === "" && rows.length > 0) {
+          e.preventDefault();
+          const idx = rows.indexOf(row);
+          rows.splice(idx, 1);
+          if (idx > 0) { focusRowId = rows[idx - 1].id; focusAtEnd = true; }
+          render();
+          onChange();
+        }
+      });
+
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "checklist-del";
+      del.setAttribute("aria-label", "×");
+      del.innerHTML = "&times;";
+      del.addEventListener("click", () => {
+        rows = rows.filter((r) => r.id !== row.id);
+        render();
+        onChange();
+      });
+
+      el.append(check, text, del);
+      container.appendChild(el);
+    }
+
+    // Always-present add-row for quick entry.
+    const addWrap = document.createElement("div");
+    addWrap.className = "checklist-row checklist-add";
+    const addInput = document.createElement("input");
+    addInput.type = "text";
+    addInput.className = "checklist-text";
+    addInput.placeholder = t("listAddRow");
+    addInputEl = addInput;
+    // Enter commits the row and re-focuses for rapid entry. Blur does NOT
+    // re-render (that would shift a Save button being tapped out from under
+    // the tap); getItems() harvests any pending text directly instead.
+    addInput.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      const value = addInput.value.trim();
+      if (!value) return;
+      rows.push({ id: rowId(), text: value, done: false });
+      addInput.value = "";
+      focusRowId = "add";
+      render();
+      onChange();
+    });
+    addWrap.appendChild(addInput);
+    container.appendChild(addWrap);
+
+    // Restore focus after a structural re-render.
+    if (focusRowId === "add") {
+      addInput.focus();
+    } else if (focusRowId) {
+      const target = container.querySelector(`.checklist-row[data-id="${focusRowId}"] .checklist-text`);
+      if (target) {
+        target.focus();
+        if (focusAtEnd) target.setSelectionRange(target.value.length, target.value.length);
+      }
+    }
+    focusRowId = null;
+    focusAtEnd = false;
+  }
+
+  function getItems() {
+    const out = rows
+      .map((r) => ({ id: r.id, text: r.text.trim(), done: !!r.done }))
+      .filter((r) => r.text !== "");
+    // Include a row typed into the add field but not yet committed with Enter.
+    const pending = addInputEl && addInputEl.value.trim();
+    if (pending) out.push({ id: rowId(), text: pending, done: false });
+    return out;
+  }
+
+  render();
+
+  return {
+    getItems,
+    setItems(items) {
+      rows = (items || []).map((r) => ({ id: r.id || rowId(), text: r.text || "", done: !!r.done }));
+      focusRowId = null;
+      render();
+    },
+  };
+}
+
 /* -------------------------------------------------------------- utility */
 
 export function escapeHtml(str) {

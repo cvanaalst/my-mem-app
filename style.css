@@ -742,7 +742,7 @@ button, input, textarea, select {
 /* ---- Type selector (Add view) ---- */
 .type-selector {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 6px;
   margin-bottom: 14px;
 }
@@ -750,16 +750,54 @@ button, input, textarea, select {
   background: var(--chip-bg);
   border: none;
   border-radius: var(--radius-sm);
-  padding: 10px 4px;
-  font-size: 13px;
+  padding: 10px 2px;
+  font-size: 12px;
   color: var(--text-secondary);
   cursor: pointer;
   transition: transform 0.1s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .type-btn:active { transform: scale(0.96); }
 .type-btn.active { background: var(--accent); color: var(--accent-text); font-weight: 600; }
 
 .add-type-field { margin-bottom: 4px; }
+
+/* ---- Checklist editor (the "list" item type) ---- */
+.checklist { display: flex; flex-direction: column; gap: 4px; }
+.checklist-row { display: flex; align-items: center; gap: 8px; }
+.checklist-check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.checklist-text {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-size: 16px;
+  color: var(--text);
+}
+.checklist-text:focus { outline: none; border-color: var(--accent); }
+.checklist-row.done .checklist-text { color: var(--text-tertiary); text-decoration: line-through; }
+.checklist-del {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 22px;
+  line-height: 1;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+.checklist-add .checklist-text { border-style: dashed; }
 
 /* ---- Settings ---- */
 .settings-group {
@@ -1145,4 +1183,6 @@ button, input, textarea, select {
   .print-overview-item-tags { font-size: 11px; font-weight: 700; color: #333; }
   .print-overview-item-comment { font-size: 12px; color: #222; margin: 2px 0 0; white-space: pre-wrap; }
   .print-overview-item-note { font-size: 12px; color: #000; margin: 4px 0 0; padding-left: 8px; border-left: 2px solid #ccc; white-space: pre-wrap; }
+  .print-overview-item-list { font-size: 12px; color: #000; margin: 4px 0 0; }
+  .print-overview-item-list div { line-height: 1.4; }
 }

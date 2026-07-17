@@ -626,7 +626,7 @@ async function deleteItemWithUndo(item) {
   });
 }
 
-const TYPES = ["link", "text", "image", "file"];
+const TYPES = ["link", "text", "list", "image", "file"];
 
 async function renderFilterChips() {
   typeFilterChips.innerHTML = "";

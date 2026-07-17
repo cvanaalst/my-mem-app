@@ -155,6 +155,11 @@
           <textarea id="detail-text" class="form-input form-textarea" rows="6"></textarea>
         </div>
 
+        <div id="detail-list-field" class="hidden">
+          <label class="form-label" data-i18n="fieldList">Lijst</label>
+          <div id="detail-list" class="checklist"></div>
+        </div>
+
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
         <textarea id="detail-comment" class="form-input comment-textarea" rows="2"></textarea>
 
@@ -200,6 +205,7 @@
       <div class="type-selector" id="add-type-selector">
         <button type="button" class="type-btn active" data-type="link" data-i18n="typeLink">Link</button>
         <button type="button" class="type-btn" data-type="text" data-i18n="typeText">Tekst</button>
+        <button type="button" class="type-btn" data-type="list" data-i18n="typeList">Lijst</button>
         <button type="button" class="type-btn" data-type="image" data-i18n="typeImage">Foto</button>
         <button type="button" class="type-btn" data-type="file" data-i18n="typeFile">Bestand</button>
       </div>
@@ -218,6 +224,11 @@
         <div id="add-text-field" class="add-type-field hidden">
           <label class="form-label" data-i18n="fieldText">Tekst</label>
           <textarea id="add-text" class="form-input form-textarea" rows="6"></textarea>
+        </div>
+
+        <div id="add-list-field" class="add-type-field hidden">
+          <label class="form-label" data-i18n="fieldList">Lijst</label>
+          <div id="add-list" class="checklist"></div>
         </div>
 
         <div id="add-image-field" class="add-type-field hidden">

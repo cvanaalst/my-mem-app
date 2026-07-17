@@ -292,6 +292,24 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   assertEqual(db.computeLinkedIdSet(items).size, 0, "computeLinkedIdSet: items without a linkedIds field contribute nothing");
 }
 
+// --- db.listProgress / listSearchText (the "list" item type) ---
+
+{
+  const rows = [{ text: "milk", done: true }, { text: "eggs", done: false }, { text: "bread", done: true }];
+  assertEqual(db.listProgress(rows), { done: 2, total: 3 }, "listProgress: counts done and total");
+}
+
+{
+  assertEqual(db.listProgress([]), { done: 0, total: 0 }, "listProgress: empty list is 0 of 0");
+  assertEqual(db.listProgress(undefined), { done: 0, total: 0 }, "listProgress: missing listItems is 0 of 0 (not a crash)");
+}
+
+{
+  const rows = [{ text: "buy milk" }, { text: "call plumber", done: true }];
+  assertEqual(db.listSearchText(rows), "buy milk call plumber", "listSearchText: joins all row text for search");
+  assertEqual(db.listSearchText(undefined), "", "listSearchText: missing listItems yields empty string");
+}
+
 // --- markdown.renderMarkdown (Detail view rendering for text items) ---
 
 {

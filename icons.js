@@ -33,6 +33,7 @@ export function typeIconSvg(type) {
   const paths = {
     link: '<path d="M3.9 12a4.1 4.1 0 014.1-4.1h4V6H8a6 6 0 000 12h4v-1.9H8A4.1 4.1 0 013.9 12zM9 13h6v-2H9v2zm7-7h-4v1.9h4A4.1 4.1 0 0120.1 12 4.1 4.1 0 0116 16.1h-4V18h4a6 6 0 000-12z"/>',
     text: '<path d="M4 4h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/>',
+    list: '<path d="M3 4h4v4H3V4zm6 1h12v2H9V5zM3 10h4v4H3v-4zm6 1h12v2H9v-2zM3 16h4v4H3v-4zm6 1h12v2H9v-2z"/>',
     image: '<path d="M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1zm1 2v9.59l3.3-3.3a1 1 0 011.4 0L14 15.6l1.3-1.3a1 1 0 011.4 0L19 16.6V6H6zm3 4a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>',
     file: '<path d="M6 2h9l5 5v15a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1zm8 1.5V8h4.5L14 3.5z"/>',
   };

@@ -139,7 +139,7 @@ async function queryItems(opts = {}) {
       if (!tags.every((t) => itemTags.includes(t))) return false;
     }
     if (needle) {
-      const haystack = normalizeSearchText(`${item.title || ""} ${item.comment || ""} ${item.text || ""} ${item.url || ""}`);
+      const haystack = normalizeSearchText(`${item.title || ""} ${item.comment || ""} ${item.text || ""} ${item.url || ""} ${listSearchText(item.listItems)}`);
       const words = needle.split(/\s+/).filter(Boolean);
       if (!words.every((w) => haystack.includes(w))) return false;
     }
@@ -246,6 +246,19 @@ function normalizeSearchText(str) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, ""); // strip diacritics
+}
+
+/* ---------------------------------------------------------------- lists */
+
+/** Pure: {done, total} for a checklist's rows (list item type). */
+function listProgress(listItems) {
+  const items = listItems || [];
+  return { done: items.filter((r) => r && r.done).length, total: items.length };
+}
+
+/** All row text of a list item, joined — used to fold list contents into search. */
+function listSearchText(listItems) {
+  return (listItems || []).map((r) => (r && r.text) || "").join(" ");
 }
 
 /* --------------------------------------------------------------- links */
@@ -501,6 +514,8 @@ export const db = {
   getBacklinks,
   computeLinkedIdSet,
   getLinkedIdSet,
+  listProgress,
+  listSearchText,
   putMedia,
   getMedia,
   deleteMedia,

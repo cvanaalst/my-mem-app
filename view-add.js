@@ -4,7 +4,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, setupTagInput, openInNewTab, autoGrowTextarea, escapeHtml } from "./ui.js";
+import { toast, confirmDialog, setupTagInput, setupChecklist, openInNewTab, autoGrowTextarea, escapeHtml } from "./ui.js";
 
 const { t } = i18n;
 
@@ -23,17 +23,20 @@ const btnOpenUrl = document.getElementById("btn-add-open-url");
 const fields = {
   link: document.getElementById("add-link-field"),
   text: document.getElementById("add-text-field"),
+  list: document.getElementById("add-list-field"),
   image: document.getElementById("add-image-field"),
   file: document.getElementById("add-file-field"),
 };
 const urlInput = document.getElementById("add-url");
 const textInput = document.getElementById("add-text");
+const listContainer = document.getElementById("add-list");
 const imageInput = document.getElementById("add-image-input");
 const imagePreview = document.getElementById("add-image-preview");
 const fileInput = document.getElementById("add-file-input");
 const filePreview = document.getElementById("add-file-preview");
 
 let tagWidget = null;
+let listWidget = null;
 let commentGrow = null;
 let onSaved = () => {};
 let onCancel = () => {};
@@ -55,6 +58,8 @@ export function initAddView(handlers) {
   // list right after yours ran. Resetting via tagWidget.setTags() on
   // each open reuses the same listeners instead of adding new ones.
   tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
+  // Same create-once/reset-per-open contract as the tag widget.
+  listWidget = setupChecklist(listContainer);
 
   typeSelector.addEventListener("click", (e) => {
     const btn = e.target.closest(".type-btn");
@@ -105,6 +110,7 @@ function resetForm() {
   filePreview.innerHTML = "";
   state.addImageFile = null;
   state.addFileFile = null;
+  if (listWidget) listWidget.setItems([]);
   pinned = false;
   renderPin();
   setType("link");
@@ -172,6 +178,7 @@ async function handleSave(e) {
     pinned,
     reminderAt: reminderInput.value || null,
     linkedIds: [],
+    listItems: [],
     url: null, text: null, mediaId: null, filename: null, mimeType: null,
     createdAt: now,
     updatedAt: now,
@@ -182,6 +189,8 @@ async function handleSave(e) {
     item.url = urlInput.value.trim();
   } else if (type === "text") {
     item.text = textInput.value;
+  } else if (type === "list") {
+    item.listItems = listWidget.getItems();
   } else if (type === "image") {
     const file = state.addImageFile;
     const fullBlob = await db.makeFullImage(file);

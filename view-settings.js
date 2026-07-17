@@ -28,8 +28,8 @@ const btnPrintOverview = document.getElementById("btn-print-overview");
 const togglePrintNoteText = document.getElementById("toggle-print-note-text");
 const printOverviewEl = document.getElementById("print-overview");
 
-const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", file: "typeFile" };
-const TYPE_ORDER = ["link", "text", "image", "file"];
+const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", list: "typeList", image: "typeImage", file: "typeFile" };
+const TYPE_ORDER = ["link", "text", "list", "image", "file"];
 
 let onThemeChange = () => {};
 let onLangChange = () => {};
@@ -186,11 +186,15 @@ async function filteredOrAllItems() {
 }
 
 function toCsv(items) {
-  const cols = ["id", "type", "title", "comment", "tags", "url", "filename", "pinned", "reminderAt", "createdAt", "updatedAt"];
+  const cols = ["id", "type", "title", "comment", "tags", "url", "filename", "listItems", "pinned", "reminderAt", "createdAt", "updatedAt"];
   const lines = [cols.join(",")];
   for (const item of items) {
     const row = cols.map((c) => {
-      let val = c === "tags" ? (item.tags || []).join(";") : item[c];
+      let val;
+      if (c === "tags") val = (item.tags || []).join(";");
+      // Flatten a checklist into one cell, e.g. "[x] milk; [ ] eggs".
+      else if (c === "listItems") val = (item.listItems || []).map((r) => `${r.done ? "[x]" : "[ ]"} ${r.text}`).join("; ");
+      else val = item[c];
       val = val == null ? "" : String(val);
       if (/[",\n]/.test(val)) val = `"${val.replace(/"/g, '""')}"`;
       return val;
@@ -264,6 +268,13 @@ function renderPrintOverviewItem(item, includeNoteText = false) {
   const noteHtml = includeNoteText && item.type === "text" && item.text
     ? `<div class="print-overview-item-note">${escapeHtml(item.text)}</div>`
     : "";
+  // A checklist's rows ARE its content, so they always print (unlike a
+  // text note's body, which is behind the include-note-text toggle).
+  const listHtml = item.type === "list" && (item.listItems || []).length
+    ? `<div class="print-overview-item-list">${item.listItems
+        .map((r) => `<div>${r.done ? "[x]" : "[ ]"} ${escapeHtml(r.text)}</div>`)
+        .join("")}</div>`
+    : "";
   return `<div class="print-overview-item">
     <div class="print-overview-item-title">${escapeHtml(item.title)}</div>
     ${urlHtml}
@@ -271,6 +282,7 @@ function renderPrintOverviewItem(item, includeNoteText = false) {
     <div class="print-overview-item-meta">${escapeHtml(formatDate(item.createdAt))}</div>
     ${commentHtml}
     ${noteHtml}
+    ${listHtml}
   </div>`;
 }
 

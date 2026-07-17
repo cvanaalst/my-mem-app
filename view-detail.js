@@ -5,7 +5,7 @@
 import { db } from "./db.js";
 import { state } from "./state.js";
 import { i18n } from "./i18n.js";
-import { toast, confirmDialog, formatDate, setupTagInput, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml, trapFocus } from "./ui.js";
+import { toast, confirmDialog, formatDate, setupTagInput, setupChecklist, openInNewTab, openBlobInNewTab, openTabForAsyncBlob, autoGrowTextarea, escapeHtml, trapFocus } from "./ui.js";
 import { icons, typeIconSvg } from "./icons.js";
 import { renderMarkdown } from "./markdown.js";
 
@@ -22,6 +22,8 @@ const btnOpenUrl = document.getElementById("btn-detail-open-url");
 const textField = document.getElementById("detail-text-field");
 const textInput = document.getElementById("detail-text");
 const textRendered = document.getElementById("detail-text-rendered");
+const listField = document.getElementById("detail-list-field");
+const listContainer = document.getElementById("detail-list");
 const btnOpenText = document.getElementById("btn-detail-open-text");
 const btnTextMode = document.getElementById("btn-detail-text-mode");
 const commentInput = document.getElementById("detail-comment");
@@ -46,6 +48,7 @@ const linkPickerResults = document.getElementById("link-picker-results");
 const linkPickerCancel = document.getElementById("link-picker-cancel");
 
 let tagWidget = null;
+let listWidget = null;
 let commentGrow = null;
 let currentItem = null;
 let currentAllTags = [];
@@ -77,6 +80,11 @@ export function initDetailView(handlers) {
   tagWidget = setupTagInput(tagsInput, tagsChips, tagsSuggestions, []);
   tagsInput.addEventListener("input", () => tagWidget.renderSuggestions(currentAllTags));
   commentGrow = autoGrowTextarea(commentInput);
+
+  // Ticking a checkbox persists immediately — a shopping list you tick then
+  // navigate away from must stick without hitting Save. Row text add/edit/
+  // delete still ride the Save button like every other field.
+  listWidget = setupChecklist(listContainer, { onToggle: persistListToggle });
 
   btnBack.addEventListener("click", onClose);
   btnDelete.addEventListener("click", handleDelete);
@@ -219,12 +227,14 @@ export async function openDetail(id) {
 
   linkField.classList.toggle("hidden", item.type !== "link");
   textField.classList.toggle("hidden", item.type !== "text");
+  listField.classList.toggle("hidden", item.type !== "list");
   urlInput.value = item.type === "link" ? (item.url || "") : "";
   textInput.value = item.type === "text" ? (item.text || "") : "";
   if (item.type === "text") {
     textViewMode = "rendered";
     renderTextMode();
   }
+  listWidget.setItems(item.type === "list" ? (item.listItems || []) : []);
 
   mediaBox.classList.add("hidden");
   mediaBox.innerHTML = "";
@@ -266,6 +276,21 @@ export async function openDetail(id) {
   renderBacklinks(await db.getBacklinks(item.id));
 }
 
+/**
+ * Write a checkbox change straight through, without waiting for Save.
+ * Merges only the listItems (and updatedAt) onto whatever's in the DB, so
+ * it doesn't clobber a concurrent edit, and refreshes the list card's
+ * progress. currentItem is kept in sync so a later Save doesn't revert it.
+ */
+async function persistListToggle(items) {
+  if (!currentItem || currentItem.type !== "list") return;
+  const fresh = (await db.getItem(currentItem.id)) || currentItem;
+  const updated = { ...fresh, listItems: items, updatedAt: new Date().toISOString() };
+  currentItem = updated;
+  await db.putItem(updated);
+  onChanged();
+}
+
 async function handleSave(e) {
   e.preventDefault();
   if (!titleInput.value.trim()) { toast(t("titleRequired"), "error"); return; }
@@ -290,6 +315,7 @@ async function handleSave(e) {
   };
   if (currentItem.type === "link") updated.url = urlInput.value.trim();
   if (currentItem.type === "text") updated.text = textInput.value;
+  if (currentItem.type === "list") updated.listItems = listWidget.getItems();
 
   await db.putItem(updated);
   toast(t("itemUpdated"), "success");

@@ -168,6 +168,14 @@ function renderCard(item) {
       body.appendChild(dom);
     }
 
+    if (item.type === "list") {
+      const { done, total } = db.listProgress(item.listItems);
+      const prog = document.createElement("p");
+      prog.className = "item-card-domain";
+      prog.textContent = t("listProgress", { done, total });
+      body.appendChild(prog);
+    }
+
     if (item.comment) {
       const comment = document.createElement("p");
       comment.className = "item-card-comment";

@@ -57,6 +57,10 @@ const dict = {
     linkPickerSearchPlaceholder: "Zoek een item…",
     linkPickerEmpty: "Geen items gevonden.",
     hasLinkedItems: "Heeft gekoppelde items",
+    fieldList: "Lijst",
+    listAddRow: "Item toevoegen…",
+    listProgress: "{done} van {total} gedaan",
+    listEmpty: "Nog geen items.",
     titleRequired: "Titel is verplicht.",
 
     addTitle: "Nieuw item",
@@ -66,6 +70,7 @@ const dict = {
     quickCaptureFromClipboard: "Van klembord geplakt",
     typeLink: "Link",
     typeText: "Tekst",
+    typeList: "Lijst",
     typeImage: "Foto",
     typeFile: "Bestand",
 
@@ -221,6 +226,10 @@ const dict = {
     linkPickerSearchPlaceholder: "Search for an item…",
     linkPickerEmpty: "No items found.",
     hasLinkedItems: "Has linked items",
+    fieldList: "Checklist",
+    listAddRow: "Add item…",
+    listProgress: "{done} of {total} done",
+    listEmpty: "No items yet.",
     titleRequired: "Title is required.",
 
     addTitle: "New item",
@@ -230,6 +239,7 @@ const dict = {
     quickCaptureFromClipboard: "Pasted from clipboard",
     typeLink: "Link",
     typeText: "Text",
+    typeList: "List",
     typeImage: "Photo",
     typeFile: "File",
 
