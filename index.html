@@ -89,6 +89,16 @@
   <!-- ===== Main content ===== -->
   <main class="content">
 
+    <!-- Shown only when the app is opened via a share-shortcut #add link in
+         iOS Safari (not the installed home-screen app). That's a separate
+         storage box, so the user's own items aren't here — explain, don't alarm. -->
+    <div id="browser-notice" class="browser-notice hidden">
+      <button id="browser-notice-close" class="browser-notice-close" type="button" data-i18n-aria="close" aria-label="Sluiten">&times;</button>
+      <strong class="browser-notice-title" data-i18n="browserNoticeTitle">Geopend in de browser</strong>
+      <span class="browser-notice-text" data-i18n="browserNoticeText">Dit is een losse browserversie met een eigen opslag — je eigen items staan hier niet, maar ze zijn niet verdwenen. Ze staan veilig in de app op je beginscherm. Kopieer deze link en tik op + in die app om te bewaren.</span>
+      <button id="browser-notice-copy" class="secondary-btn browser-notice-copy hidden" type="button" data-i18n="browserNoticeCopy">Kopieer link</button>
+    </div>
+
     <!-- List view -->
     <section id="view-list" class="view">
       <div id="list-empty" class="empty-state hidden">

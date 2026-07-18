@@ -1,62 +1,32 @@
-# Snelkoppeling maken op je iPhone (stap voor stap)
+# Links opslaan vanaf je iPhone (de betrouwbare manier)
 
-Met een snelkoppeling (Shortcut) kun je vanuit het **deelblad** van je iPhone een link rechtstreeks in Second Memory opslaan. De snelkoppeling opent de app met een vooraf ingevuld formulier — jij tikt alleen nog op **Opslaan**.
+Op iPhone kun je Second Memory het best vullen via het **klembord**. Dat klinkt omslachtig, maar het is juist de enige manier die altijd werkt — en het is maar drie tikken.
 
-Je hebt maar **twee acties** nodig. Onderstaande stappen maken de snelkoppeling voor het opslaan van **links** (webpagina's uit Safari). Onderaan staat hoe je hetzelfde doet voor **tekst**.
+## Waarom niet via een snelkoppeling die de app opent?
 
-> **Tip:** Apple vertaalt de schermteksten soms net iets anders per iOS-versie. Achter elke Nederlandse naam staat de Engelse term tussen haakjes — vind je een actie niet, zoek dan even op het Engelse woord.
+iOS kan een link niet openen in de app op je beginscherm; zo'n link opent altijd in **Safari**. En Safari heeft een **eigen, aparte opslag**, los van de app op je beginscherm. Daardoor lijkt de app daar leeg ("nieuwe installatie") en komt wat je er bewaart niet vanzelf in je echte app terecht. Vandaar: sla op via het klembord, in de app zelf.
 
-## Stap 1 — Nieuwe snelkoppeling starten
+## De betrouwbare manier (aanbevolen)
 
-- Open de app **Opdrachten** (*Shortcuts*).
-- Tik rechtsboven op **+** om een nieuwe opdracht te maken.
-- Tik bovenaan op de naam en noem ze **Bewaar in Second Memory**.
+1. Open een webpagina in **Safari**.
+2. Tik op het **deelpictogram** (het vierkantje met pijltje omhoog) en kies **Kopieer** (*Copy*).
+3. Open **Second Memory** vanaf het pictogram op je **beginscherm**.
+4. Tik op **+**. De gekopieerde link staat al ingevuld. Vul eventueel een titel of tags in en tik op **Opslaan**.
 
-## Stap 2 — In het deelblad zetten
+Zo blijft alles in dezelfde opslag als de rest van je items, en synchroniseert het gewoon mee met Google Drive.
 
-- Tik op de knop met de **twee schuifjes** (of het ⓘ-pictogram) om de instellingen te openen.
-- Zet **Weergeven in deelblad** (*Show in Share Sheet*) aan.
-- Zorg dat bij de ontvangen types **URL's** (*URLs*) is aangevinkt.
-- Ga terug naar het bewerkscherm. Bovenaan staat nu automatisch **Ontvang invoer uit deelblad** (*Receive input from Share Sheet*).
+## Optioneel: een snelkoppeling met een nette naam
 
-## Stap 3 — Actie "URL coderen" toevoegen
+Wil je in het deelblad een knop met de naam "Bewaar in Second Memory"? Dan hoef je maar **één actie** te maken — de snelkoppeling kopieert alleen naar het klembord, daarna gebruik je stap 3–4 hierboven.
 
-- Tik op **Voeg actie toe** (*Add Action*) en zoek op **URL coderen** (*URL Encode*).
-- Tik erop om ze toe te voegen.
-- De actie pakt automatisch de **Opdrachtinvoer** (*Shortcut Input*) als invoer. Staat er iets anders? Tik op het invoerveld en kies **Opdrachtinvoer**.
+1. Open de app **Opdrachten** (*Shortcuts*) → tik op **+** → noem ze **Bewaar in Second Memory**.
+2. Tik op de knop met de twee schuifjes (of het informatieteken) → zet **Weergeven in deelblad** (*Show in Share Sheet*) aan → types op **URL's**.
+3. Voeg de actie **Kopieer naar klembord** (*Copy to Clipboard*) toe. Als invoer pakt ze vanzelf de **Opdrachtinvoer** (*Shortcut Input*).
+4. Tik op **Gereed**.
 
-## Stap 4 — Actie "Open URL's" toevoegen
-
-- Tik weer op **Voeg actie toe** en zoek op **Open URL's** (*Open URLs*).
-- In het veld van die actie typ je precies dit adres:
-
-`https://cvanaalst.github.io/my-mem-app/#add?type=link&url=`
-
-- Zet de cursor **direct achter** `url=` (dus helemaal aan het einde, zonder spatie).
-- Tik op de **variabele-toets** boven het toetsenbord en kies het resultaat van **URL coderen** (het heet meestal *URL-gecodeerde tekst* / *URL Encoded Text*).
-- Nu staat er: het vaste adres, gevolgd door een blauw blokje met de gecodeerde link.
-
-## Stap 5 — Bewaren
-
-- Tik op **Gereed** (*Done*). Klaar — de snelkoppeling staat nu in je deelblad.
-
-## Zo gebruik je ze
-
-1. Open een webpagina in Safari (of een link in een andere app).
-2. Tik op het **deelpictogram** (het vierkantje met pijltje omhoog).
-3. Kies **Bewaar in Second Memory** uit de lijst.
-4. Second Memory opent met de link al ingevuld. Voeg eventueel een titel of tags toe en tik op **Opslaan**.
-
-## Variant voor tekst (optioneel)
-
-Wil je ook geselecteerde **tekst** kunnen opslaan (bv. uit Notities)? Maak een tweede snelkoppeling met exact dezelfde stappen, met twee kleine verschillen:
-
-- **Stap 2:** vink bij de ontvangen types **Tekst** (*Text*) aan in plaats van URL's.
-- **Stap 4:** gebruik dit adres in plaats van het vorige:
-
-`https://cvanaalst.github.io/my-mem-app/#add?type=text&text=`
+Nu staat "Bewaar in Second Memory" in je deelblad. Kies je die, dan wordt de link gekopieerd; open daarna de app en tik op **+**.
 
 ## Goed om te weten
 
-- De link opent in een gewone **Safari-tab**, niet in de app op je beginscherm. Dat is een beperking van iOS zelf. Het formulier werkt daar precies hetzelfde (het is dezelfde site); bewaar je item en ga daarna terug naar het app-pictogram op je beginscherm.
-- Waarom de actie **URL coderen**? Zonder die stap breekt een link met speciale tekens (zoals `&` of `?` in de webadres-staart) halverwege af. Met URL coderen wordt de hele link netjes meegegeven.
+- Open je toch per ongeluk de oude `#add`-link (die de app in Safari opent), dan toont de app nu een uitleg bovenaan en een knop **Kopieer link**, zodat je alsnog via **+** in de echte app kunt opslaan. Je gegevens zijn niet weg — die staan veilig in de app op je beginscherm.
+- Zet Second Memory op je beginscherm (via Safari → Deel → **Zet op beginscherm**) voor de beste ervaring en één vaste opslag.

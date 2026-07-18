@@ -859,6 +859,39 @@ function parseAddHash() {
   };
 }
 
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * When a share-shortcut #add link is opened on iOS, iOS always loads it in
+ * Safari — never the installed home-screen app — and Safari has a SEPARATE
+ * storage box, so the user's own items aren't there and it looks like a
+ * fresh install. Rather than let that alarm, show a banner explaining it and
+ * offer to copy the link so it can be saved via + in the real app. Only on
+ * iOS + non-standalone (desktop browsers and the installed app are the user's
+ * real context, so they must never see this).
+ */
+function maybeShowBrowserNotice(prefill) {
+  if (!prefill || isStandalone() || !isIOSDevice()) return;
+  const notice = document.getElementById("browser-notice");
+  const copyBtn = document.getElementById("browser-notice-copy");
+  if (prefill.url) {
+    copyBtn.classList.remove("hidden");
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(prefill.url);
+        toast(t("copiedToClipboard"), "success");
+      } catch (_) {
+        toast(t("shareNotSupported"), "error");
+      }
+    });
+  }
+  document.getElementById("browser-notice-close").addEventListener("click", () => notice.classList.add("hidden"));
+  notice.classList.remove("hidden");
+}
+
 async function resumeAfterOAuthRedirect() {
   const pending = await sync.handleRedirectReturn();
   if (pending === "sync") {
@@ -901,6 +934,7 @@ async function boot() {
   await maybeShowInstallHint();
 
   const addPrefill = parseAddHash();
+  maybeShowBrowserNotice(addPrefill);
 
   // Establish the base history entry (also strips any #add deep-link hash
   // from the URL, read just above). Pushed views nest on top of this;
