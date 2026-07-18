@@ -15,9 +15,11 @@ const listEl = document.getElementById("trash-list");
 const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", list: "typeList", file: "typeFile" };
 
 let onRestore = null;
+let onPurge = null;
 
 export function initTrashView(handlers) {
   onRestore = handlers.onRestore;
+  onPurge = handlers.onPurge;
 }
 
 export async function refreshTrashView() {
@@ -44,17 +46,33 @@ function renderRow(item) {
     `<span class="trash-item-title">${escapeHtml(title)}</span>` +
     `<span class="trash-item-meta">${escapeHtml(typeLabel)} · ${escapeHtml(formatDate(item.deletedAt))}</span>`;
 
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "secondary-btn trash-restore-btn";
-  btn.textContent = t("restore");
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
+  const actions = document.createElement("div");
+  actions.className = "trash-item-actions";
+
+  const restoreBtn = document.createElement("button");
+  restoreBtn.type = "button";
+  restoreBtn.className = "secondary-btn trash-restore-btn";
+  restoreBtn.textContent = t("restore");
+  restoreBtn.addEventListener("click", async () => {
+    restoreBtn.disabled = true;
     await onRestore(item);
     await refreshTrashView();
   });
 
+  const purgeBtn = document.createElement("button");
+  purgeBtn.type = "button";
+  purgeBtn.className = "text-btn trash-purge-btn";
+  purgeBtn.textContent = t("deleteForever");
+  purgeBtn.addEventListener("click", async () => {
+    purgeBtn.disabled = true;
+    const done = await onPurge(item);
+    if (done) await refreshTrashView();
+    else purgeBtn.disabled = false;
+  });
+
+  actions.appendChild(restoreBtn);
+  actions.appendChild(purgeBtn);
   row.appendChild(info);
-  row.appendChild(btn);
+  row.appendChild(actions);
   return row;
 }

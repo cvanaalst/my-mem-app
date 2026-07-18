@@ -844,7 +844,9 @@ button, input, textarea, select {
   text-overflow: ellipsis;
 }
 .trash-item-meta { color: var(--text-tertiary); font-size: 12px; }
+.trash-item-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
 .trash-restore-btn { flex: none; width: auto; padding: 8px 16px; }
+.trash-purge-btn { font-size: 12px; color: var(--danger, #e5484d); padding: 2px 4px; }
 .trash-empty { color: var(--text-secondary); font-size: 14px; }
 
 /* ---- Settings ---- */

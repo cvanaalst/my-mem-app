@@ -303,7 +303,7 @@ export async function syncNow() {
       }
     }
 
-    const { toUpload, toDownload, toDeleteLocal } = computeMediaActions(merged, localMediaIds, remoteMediaNames);
+    const { toUpload, toDownload, toDeleteLocal, toDeleteRemoteNames } = computeMediaActions(merged, localMediaIds, remoteMediaNames);
 
     // Upload local-only media.
     for (const item of toUpload) {
@@ -329,11 +329,15 @@ export async function syncNow() {
       await db.putMedia({ id: item.mediaId, blob, thumbnailBlob });
     }
 
-    // Purge local media for newly-tombstoned items, and remove the Drive copy.
+    // Purge any local blobs still held by tombstoned items.
     for (const item of toDeleteLocal) {
       await db.deleteMedia(item.mediaId);
-      const remoteName = `${item.id}__${item.filename}`;
-      const remoteFile = remoteFileList.find((f) => f.name === remoteName);
+    }
+    // Remove Drive media for tombstoned items (matched by id-prefix), even
+    // when the local blob is already gone — otherwise deleted photos/files
+    // orphan their Drive copy and never free that space.
+    for (const name of toDeleteRemoteNames) {
+      const remoteFile = remoteFileList.find((f) => f.name === name);
       if (remoteFile) {
         try { await deleteFile(token, remoteFile.id); } catch (_) { /* already gone */ }
       }

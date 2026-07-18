@@ -161,6 +161,29 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   assertEqual([toUpload, toDownload, toDeleteLocal], [[], [], []], "computeMediaActions: items without mediaId are ignored");
 }
 
+{
+  // Deleted item whose LOCAL blob is already purged (undo-expire) but whose
+  // Drive copy still exists must still have the Drive copy removed.
+  const items = [item({ id: "a", mediaId: "m1", filename: "photo.jpg", type: "image", deletedAt: "2026-01-01T00:00:00.000Z" })];
+  const { toDeleteLocal, toDeleteRemoteNames } = computeMediaActions(items, new Set(), new Set(["a__photo.jpg"]));
+  assertEqual(toDeleteLocal, [], "computeMediaActions: no local media to purge when already gone");
+  assertEqual(toDeleteRemoteNames, ["a__photo.jpg"], "computeMediaActions: orphaned Drive media of a tombstone is queued for remote deletion");
+}
+
+{
+  // "Delete forever" wipes the filename; the Drive copy is still matched by id.
+  const items = [item({ id: "a", mediaId: null, filename: null, type: "image", deletedAt: "2026-01-01T00:00:00.000Z" })];
+  const { toDeleteRemoteNames } = computeMediaActions(items, new Set(), new Set(["a__photo.jpg"]));
+  assertEqual(toDeleteRemoteNames, ["a__photo.jpg"], "computeMediaActions: tombstone Drive media matched by id even after filename is wiped");
+}
+
+{
+  // A live item's Drive media is never queued for deletion.
+  const items = [item({ id: "a", mediaId: "m1", filename: "photo.jpg", type: "image" })];
+  const { toDeleteRemoteNames } = computeMediaActions(items, new Set(["m1"]), new Set(["a__photo.jpg"]));
+  assertEqual(toDeleteRemoteNames, [], "computeMediaActions: live item's Drive media is never deleted");
+}
+
 // --- db.sortTagsByRecency (tag suggestion ordering) ---
 
 {

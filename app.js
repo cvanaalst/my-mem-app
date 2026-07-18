@@ -7,7 +7,7 @@
 import { db } from "./db.js";
 import { i18n } from "./i18n.js";
 import { state } from "./state.js";
-import { toast, isStandalone, trapFocus } from "./ui.js";
+import { toast, isStandalone, trapFocus, confirmDialog } from "./ui.js";
 import { icons } from "./icons.js";
 import { sync } from "./sync.js";
 
@@ -679,6 +679,40 @@ async function restoreFromTrash(item) {
   toast(t("itemRestored"), "success");
 }
 
+/**
+ * Permanently forgets a tombstoned item's content. The record is kept as a
+ * bare tombstone ({id, deletedAt, purgedAt}) so sync still enforces the
+ * deletion and it can't resurrect — but title/text/url/tags/list are wiped
+ * and any lingering local media blob is purged. The Drive media copy is
+ * cleaned by the next sync (computeMediaActions matches it by id). Little
+ * device space is reclaimed (the blob was freed at delete time); this
+ * destroys the leftover content and frees the Drive copy.
+ */
+async function purgeDeletedItem(item) {
+  if (item.mediaId) await db.deleteMedia(item.mediaId);
+  const now = new Date().toISOString();
+  await db.putItem({
+    id: item.id,
+    type: item.type,
+    title: "", comment: "", text: null, url: null,
+    tags: [], listItems: [], linkedIds: [],
+    pinned: false, reminderAt: null,
+    mediaId: null, filename: null, mimeType: null,
+    createdAt: item.createdAt || now,
+    deletedAt: item.deletedAt || now,
+    purgedAt: now,
+    updatedAt: now,
+  });
+}
+
+async function purgeFromTrash(item) {
+  const ok = await confirmDialog(t("deleteForeverConfirm"), t("deleteForever"));
+  if (!ok) return false;
+  await purgeDeletedItem(item);
+  toast(t("itemPurged"), "success");
+  return true;
+}
+
 const TYPES = ["link", "text", "list", "image", "file"];
 
 async function renderFilterChips() {
@@ -857,7 +891,7 @@ async function boot() {
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView, onDelete: deleteItemWithUndo, onNavigate: goDetail });
   initAddView({ onSaved: () => history.back(), onCancel: backFromDetailOrAdd });
   initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
-  initTrashView({ onRestore: restoreFromTrash });
+  initTrashView({ onRestore: restoreFromTrash, onPurge: purgeFromTrash });
 
   initPullToRefresh();
   window.addEventListener("sm:data-changed", refreshCurrentView);

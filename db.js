@@ -171,7 +171,7 @@ async function countDueReminders() {
 async function getDeletedItems() {
   const all = await getAllItems();
   return all
-    .filter((i) => i.deletedAt && !i.restoredAt)
+    .filter((i) => i.deletedAt && !i.restoredAt && !i.purgedAt)
     .sort((a, b) => (b.deletedAt || "").localeCompare(a.deletedAt || ""));
 }
 

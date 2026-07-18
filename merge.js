@@ -66,7 +66,9 @@ export function computeMediaActions(mergedItems, localMediaIds, remoteMediaNames
   const toDownload = [];
   const toDeleteLocal = [];
 
+  const tombstonedIds = new Set();
   for (const item of mergedItems) {
+    if (item.deletedAt) tombstonedIds.add(item.id);
     if (!item.mediaId) continue;
     const remoteName = `${item.id}__${item.filename}`;
     const remoteHas = remoteMediaNames.has(remoteName);
@@ -80,5 +82,18 @@ export function computeMediaActions(mergedItems, localMediaIds, remoteMediaNames
     if (!localHas && remoteHas) toDownload.push({ item, remoteName });
   }
 
-  return { toUpload, toDownload, toDeleteLocal };
+  // Remove Drive media belonging to a deleted item, matched by the "<id>__"
+  // filename prefix. This runs independently of whether the LOCAL blob still
+  // exists — deletion purges the local blob within seconds (undo-expire), so
+  // by the next sync it's usually gone, and gating remote deletion on the
+  // local blob would orphan the Drive copy forever. Matching by id (not the
+  // exact filename) also lets "delete forever" wipe the filename and still
+  // have the Drive copy cleaned here.
+  const toDeleteRemoteNames = [];
+  for (const name of remoteMediaNames) {
+    const id = name.split("__")[0];
+    if (tombstonedIds.has(id)) toDeleteRemoteNames.push(name);
+  }
+
+  return { toUpload, toDownload, toDeleteLocal, toDeleteRemoteNames };
 }
