@@ -346,20 +346,29 @@ function bucketItemsByWeek(items, weekCount, now = new Date()) {
 async function getStats() {
   const all = await getAllItems();
   const live = all.filter((item) => !item.deletedAt);
-  const byType = { link: 0, text: 0, image: 0, file: 0 };
+  const byType = { link: 0, text: 0, image: 0, list: 0, file: 0 };
   let pinnedCount = 0;
   let remindersDueCount = 0;
+  let openTasks = 0;
+  let totalTasks = 0;
   const today = new Date().toISOString().slice(0, 10);
   for (const item of live) {
     if (byType[item.type] !== undefined) byType[item.type]++;
     if (item.pinned) pinnedCount++;
     if (item.reminderAt && item.reminderAt <= today) remindersDueCount++;
+    if (item.type === "list") {
+      const { done, total } = listProgress(item.listItems);
+      totalTasks += total;
+      openTasks += total - done;
+    }
   }
   return {
     total: live.length,
     byType,
     pinnedCount,
     remindersDueCount,
+    openTasks,
+    totalTasks,
     byWeek: bucketItemsByWeek(live, 12),
   };
 }

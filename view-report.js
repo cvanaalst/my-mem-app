@@ -15,7 +15,7 @@ const typeBarsEl = document.getElementById("report-type-bars");
 const weekChartEl = document.getElementById("report-week-chart");
 const tagCloudEl = document.getElementById("report-tag-cloud");
 
-const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", file: "typeFile" };
+const TYPE_LABEL_KEYS = { link: "typeLink", text: "typeText", image: "typeImage", list: "typeList", file: "typeFile" };
 
 export async function refreshReportView() {
   const stats = await db.getStats();
@@ -31,6 +31,11 @@ function renderTiles(stats) {
     { label: t("reportPinned"), value: stats.pinnedCount },
     { label: t("reportRemindersDue"), value: stats.remindersDueCount },
   ];
+  // Only surface the open-tasks tile when there is at least one checklist,
+  // so users who never make lists don't see a permanent "0".
+  if (stats.totalTasks > 0) {
+    tiles.push({ label: t("reportOpenTasks"), value: stats.openTasks });
+  }
   tilesEl.innerHTML = tiles
     .map((tile) => `<div class="report-tile"><span class="report-tile-value">${tile.value}</span><span class="report-tile-label">${tile.label}</span></div>`)
     .join("");

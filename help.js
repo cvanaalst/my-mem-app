@@ -22,8 +22,16 @@ Je persoonlijke geheugen voor links, notities, foto's en bestanden. Alles staat 
 
 - Tik op **+** onderaan. Heb je net een link gekopieerd, dan staat die al klaar — tik alleen nog op **Opslaan**.
 - Typ je iets anders dan een link, dan wordt het een tekstnotitie.
-- **Meer opties** opent het volledige formulier. Daar kies je tussen **Link**, **Tekst**, **Foto** en **Bestand**, en voeg je meteen een titel, opmerking, tags of een herinnering toe.
+- **Meer opties** opent het volledige formulier. Daar kies je tussen **Link**, **Tekst**, **Lijst**, **Foto** en **Bestand**, en voeg je meteen een titel, opmerking, tags of een herinnering toe.
 - Sla je een link op die er al staat, dan waarschuwt de app je eerst.
+
+## Lijsten en to-do's
+
+- Kies **Lijst** om een boodschappen- of takenlijst te maken. De titel en opmerking blijven, maar het tekstveld wordt een reeks aanvinkbare regels.
+- **Enter** maakt de volgende regel; **Backspace** op een lege regel wist die weer.
+- Een vinkje zetten of weghalen wordt meteen bewaard — ook zonder op **Opslaan** te tikken.
+- Op de lijstkaart zie je de voortgang, bijvoorbeeld *2 van 4 gedaan*.
+- Naast elke regel staat een klein **schakeltje**. Tik erop om die regel aan een ander item te koppelen; het schakeltje kleurt dan op. Tik nogmaals om naar het gekoppelde item te springen, of houd het ingedrukt om de koppeling los te maken.
 
 ## Terugvinden
 
@@ -60,7 +68,7 @@ Je persoonlijke geheugen voor links, notities, foto's en bestanden. Alles staat 
 
 ## Weergave
 
-Kies een van de vier thema's, de taal en de lijstweergave. Onder **Inzichten** zie je hoeveel je hebt vastgelegd, per type en per week.
+Kies een van de vier thema's, de taal en de lijstweergave. Onder **Inzichten** zie je hoeveel je hebt vastgelegd, per type en per week, plus hoeveel taken er nog openstaan.
 
 ## Snel vastleggen vanaf je iPhone
 
@@ -80,8 +88,16 @@ Your personal memory for links, notes, photos and files. Everything lives on you
 
 - Tap **+** at the bottom. If you've just copied a link it's already filled in — one tap on **Save** and you're done.
 - Type anything that isn't a link and it becomes a text note.
-- **More options** opens the full form, where you pick **Link**, **Text**, **Photo** or **File** and can add a title, comment, tags or a reminder straight away.
+- **More options** opens the full form, where you pick **Link**, **Text**, **List**, **Photo** or **File** and can add a title, comment, tags or a reminder straight away.
 - Save a link you already have and the app warns you first.
+
+## Lists and to-dos
+
+- Pick **List** to make a shopping list or a to-do list. The title and comment stay, but the text field becomes a set of tickable rows.
+- **Enter** starts the next row; **Backspace** on an empty row removes it.
+- Ticking or unticking a box is saved immediately — no need to tap **Save**.
+- The list card shows progress, for example *2 of 4 done*.
+- Each row has a small **chain icon**. Tap it to link that row to another item; the icon lights up. Tap again to jump to the linked item, or hold it to remove the link.
 
 ## Finding things again
 
@@ -118,7 +134,7 @@ Your personal memory for links, notes, photos and files. Everything lives on you
 
 ## Appearance
 
-Pick one of the four themes, the language, and the list density. **Insights** shows how much you've captured, by type and by week.
+Pick one of the four themes, the language, and the list density. **Insights** shows how much you've captured, by type and by week, plus how many tasks are still open.
 
 ## Quick capture from your iPhone
 
