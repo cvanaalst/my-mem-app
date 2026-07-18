@@ -70,6 +70,12 @@ Je persoonlijke geheugen voor links, notities, foto's en bestanden. Alles staat 
 
 Kies een van de vier thema's, de taal en de lijstweergave. Onder **Inzichten** zie je hoeveel je hebt vastgelegd, per type en per week, plus hoeveel taken er nog openstaan.
 
+## Vastleggen vanaf je computer
+
+Op een computer leg je een pagina in één klik vast met een bladwijzer-knop (bookmarklet). Maak een nieuwe bladwijzer in je browser en plak de onderstaande regel als het adres (de URL). Klik erop op een willekeurige webpagina en die opent meteen ingevuld in het formulier.
+
+javascript:location.href='https://cvanaalst.github.io/my-mem-app/#add?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)
+
 ## Snel vastleggen vanaf je iPhone
 
 Zet de app op je beginscherm voor de beste ervaring. Met een iOS-Shortcut kun je een gedeelde link rechtstreeks in het formulier openen — de stappen staan in *snelvastleggen-ios-shortcuts-nl.md* bij het project.
@@ -135,6 +141,12 @@ Your personal memory for links, notes, photos and files. Everything lives on you
 ## Appearance
 
 Pick one of the four themes, the language, and the list density. **Insights** shows how much you've captured, by type and by week, plus how many tasks are still open.
+
+## Capturing from your computer
+
+On a computer you can capture a page in one click with a bookmarklet. Create a new bookmark in your browser and paste the line below as its address (URL). Click it on any web page and it opens pre-filled in the form.
+
+javascript:location.href='https://cvanaalst.github.io/my-mem-app/#add?url='+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)
 
 ## Quick capture from your iPhone
 

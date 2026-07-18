@@ -158,6 +158,7 @@
         <div id="detail-list-field" class="hidden">
           <label class="form-label" data-i18n="fieldList">Lijst</label>
           <div id="detail-list" class="checklist"></div>
+          <button type="button" id="btn-list-uncheck-all" class="text-btn checklist-uncheck hidden" data-i18n="uncheckAll">Alles uitvinken</button>
         </div>
 
         <label class="form-label" data-i18n="fieldComment">Opmerking</label>
@@ -343,6 +344,7 @@
       <div class="settings-group">
         <h2 class="settings-heading" data-i18n="storage">Opslag</h2>
         <div id="storage-info" class="storage-info"></div>
+        <button type="button" id="btn-view-trash" class="secondary-btn full-width" data-i18n="trashButton">Onlangs verwijderd</button>
       </div>
 
       <div class="settings-group">
@@ -365,6 +367,17 @@
         <span style="width:60px"></span>
       </div>
       <div id="help-body" class="markdown-rendered help-body"></div>
+    </section>
+
+    <!-- Recently deleted (trash) view -->
+    <section id="view-trash" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-trash-back" class="text-btn" data-i18n="back">Terug</button>
+        <span class="detail-header-title" data-i18n="trashTitle">Onlangs verwijderd</span>
+        <span style="width:60px"></span>
+      </div>
+      <p class="trash-intro" data-i18n="trashIntro">Verwijderde items blijven hier tot ze via synchronisatie definitief zijn opgeruimd. Herstellen maakt een nieuwe kopie.</p>
+      <div id="trash-list" class="trash-list"></div>
     </section>
 
     <!-- Reporting / statistics view -->

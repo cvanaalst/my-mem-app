@@ -186,7 +186,7 @@ async function handleSave(e) {
   };
 
   if (type === "link") {
-    item.url = urlInput.value.trim();
+    item.url = db.stripTrackingParams(urlInput.value.trim());
   } else if (type === "text") {
     item.text = textInput.value;
   } else if (type === "list") {

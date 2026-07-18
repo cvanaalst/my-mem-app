@@ -310,6 +310,25 @@ assertEqual(resolveRecord(item(), undefined), item(), "resolveRecord: missing re
   assertEqual(db.listSearchText(undefined), "", "listSearchText: missing listItems yields empty string");
 }
 
+// --- db.stripTrackingParams (URL cleanup on capture) ---
+
+{
+  assertEqual(db.stripTrackingParams("https://example.com/page?utm_source=x&utm_medium=y"),
+    "https://example.com/page", "stripTrackingParams: drops the whole utm_* family");
+  assertEqual(db.stripTrackingParams("https://example.com/p?id=42&utm_campaign=z"),
+    "https://example.com/p?id=42", "stripTrackingParams: keeps real params, drops utm_");
+  assertEqual(db.stripTrackingParams("https://example.com/p?fbclid=abc&gclid=def"),
+    "https://example.com/p", "stripTrackingParams: drops fbclid and gclid");
+  assertEqual(db.stripTrackingParams("https://youtu.be/xyz?si=trackme"),
+    "https://youtu.be/xyz", "stripTrackingParams: drops the share 'si' param");
+  assertEqual(db.stripTrackingParams("https://example.com/p?a=1#section"),
+    "https://example.com/p?a=1#section", "stripTrackingParams: leaves clean URLs (and hash) untouched");
+  assertEqual(db.stripTrackingParams("not a url"),
+    "not a url", "stripTrackingParams: returns unparseable input unchanged");
+  assertEqual(db.stripTrackingParams(""),
+    "", "stripTrackingParams: empty input yields empty string");
+}
+
 // --- markdown.renderMarkdown (Detail view rendering for text items) ---
 
 {

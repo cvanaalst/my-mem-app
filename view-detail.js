@@ -24,6 +24,7 @@ const textInput = document.getElementById("detail-text");
 const textRendered = document.getElementById("detail-text-rendered");
 const listField = document.getElementById("detail-list-field");
 const listContainer = document.getElementById("detail-list");
+const btnUncheckAll = document.getElementById("btn-list-uncheck-all");
 const btnOpenText = document.getElementById("btn-detail-open-text");
 const btnTextMode = document.getElementById("btn-detail-text-mode");
 const commentInput = document.getElementById("detail-comment");
@@ -89,12 +90,21 @@ export function initDetailView(handlers) {
   //   onNavigate-> tapping a linked row opens that entry (persist first so
   //                the freshly-set link and any pending edits aren't lost)
   listWidget = setupChecklist(listContainer, {
-    onPersist: persistListItems,
+    onPersist: (items) => { updateUncheckAllBtn(items); return persistListItems(items); },
     pickLink: () => pickLinkTarget(),
     onNavigate: async (linkedId) => {
       await persistListItems(listWidget.getItems());
       onNavigate(linkedId);
     },
+  });
+
+  btnUncheckAll.addEventListener("click", async () => {
+    const items = listWidget.getItems().map((r) => ({ ...r, done: false }));
+    listWidget.setItems(items);
+    updateUncheckAllBtn(items);
+    await persistListItems(items);
+    if (navigator.vibrate) navigator.vibrate(10);
+    toast(t("listUnchecked"), "success");
   });
 
   btnBack.addEventListener("click", onClose);
@@ -291,6 +301,7 @@ export async function openDetail(id) {
   // links are cleaned at render (not persisted until the next Save).
   const listRows = item.type === "list" ? await withLiveRowLinks(item.listItems || []) : [];
   listWidget.setItems(listRows);
+  updateUncheckAllBtn(listRows);
 
   mediaBox.classList.add("hidden");
   mediaBox.innerHTML = "";
@@ -349,6 +360,13 @@ async function withLiveRowLinks(listItems) {
   }));
 }
 
+// The "uncheck all" reset is only useful once something is ticked, so the
+// button hides itself on an all-empty (fresh) list.
+function updateUncheckAllBtn(items) {
+  const anyDone = (items || []).some((r) => r.done);
+  btnUncheckAll.classList.toggle("hidden", !anyDone);
+}
+
 async function persistListItems(items) {
   if (!currentItem || currentItem.type !== "list") return;
   const fresh = (await db.getItem(currentItem.id)) || currentItem;
@@ -380,7 +398,7 @@ async function handleSave(e) {
     linkedIds: linkedItems.map((x) => x.id),
     updatedAt: new Date().toISOString(),
   };
-  if (currentItem.type === "link") updated.url = urlInput.value.trim();
+  if (currentItem.type === "link") updated.url = db.stripTrackingParams(urlInput.value.trim());
   if (currentItem.type === "text") updated.text = textInput.value;
   if (currentItem.type === "list") updated.listItems = listWidget.getItems();
 

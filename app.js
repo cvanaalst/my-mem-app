@@ -17,6 +17,7 @@ import { initDetailView, openDetail, shareItem } from "./view-detail.js";
 import { initAddView, openAdd } from "./view-add.js";
 import { initSettingsView, refreshSettingsView } from "./view-settings.js";
 import { refreshReportView } from "./view-report.js";
+import { initTrashView, refreshTrashView } from "./view-trash.js";
 import { renderMarkdown } from "./markdown.js";
 import { HELP_CONTENT } from "./help.js";
 
@@ -31,6 +32,7 @@ const views = {
   settings: document.getElementById("view-settings"),
   report: document.getElementById("view-report"),
   help: document.getElementById("view-help"),
+  trash: document.getElementById("view-trash"),
 };
 const tabButtons = document.querySelectorAll(".tab-btn");
 
@@ -40,7 +42,7 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 // popped back via Back/Cancel) — those transitions slide like native iOS
 // navigation. Switching between tab-bar destinations (list/grid/settings)
 // stays instant, matching how iOS tab bars behave (no slide between tabs).
-const PUSH_TARGETS = new Set(["detail", "add", "report", "help"]);
+const PUSH_TARGETS = new Set(["detail", "add", "report", "help", "trash"]);
 
 // Scroll offset per base tab, so returning from a pushed view lands where
 // you left the list — while a freshly-opened detail/add always starts at
@@ -125,6 +127,11 @@ function goHelp(push = true) {
   showView("help");
   renderHelp();
 }
+async function goTrash(push = true) {
+  if (push) history.pushState({ smView: "trash" }, "");
+  showView("trash");
+  await refreshTrashView();
+}
 
 // The help text is long-form prose, so it's authored as Markdown (help.js)
 // and rendered with the same minimal renderer the text items use, rather
@@ -139,6 +146,7 @@ function renderHelp() {
 function backFromDetailOrAdd() { history.back(); }
 function backFromReport() { history.back(); }
 function backFromHelp() { history.back(); }
+function backFromTrash() { history.back(); }
 
 window.addEventListener("popstate", (e) => {
   const s = e.state || {};
@@ -147,6 +155,7 @@ window.addEventListener("popstate", (e) => {
     case "add": goAdd(null, false); break;
     case "report": goReport(false); break;
     case "help": goHelp(false); break;
+    case "trash": goTrash(false); break;
     case "grid": goGrid(); break;
     case "settings": goSettings(); break;
     case "list":
@@ -160,6 +169,22 @@ async function refreshCurrentView() {
   if (current === "list") await resetAndLoadList();
   else if (current === "grid") await resetAndLoadGrid();
   else if (current === "settings") await refreshSettingsView();
+  updateAppBadge();
+}
+
+/**
+ * Mirrors the count of due reminders onto the home-screen app icon via the
+ * Badging API (iOS 16.4+ standalone PWAs, desktop Chrome/Edge). Best-effort:
+ * silently no-ops where unsupported. It's the strongest nudge a serverless
+ * PWA can give for reminders without a push server.
+ */
+async function updateAppBadge() {
+  if (!("setAppBadge" in navigator)) return;
+  try {
+    const count = await db.countDueReminders();
+    if (count > 0) await navigator.setAppBadge(count);
+    else await navigator.clearAppBadge();
+  } catch (_) { /* badge is decorative; ignore failures */ }
 }
 
 /* ---------------------------------------------------------- tab bar UI */
@@ -183,6 +208,8 @@ document.querySelector(".tabbar").addEventListener("click", (e) => {
 document.getElementById("btn-view-report").addEventListener("click", () => goReport());
 document.getElementById("btn-report-back").addEventListener("click", backFromReport);
 document.getElementById("btn-view-help").addEventListener("click", () => goHelp());
+document.getElementById("btn-view-trash").addEventListener("click", () => goTrash());
+document.getElementById("btn-trash-back").addEventListener("click", backFromTrash);
 document.getElementById("btn-help-back").addEventListener("click", backFromHelp);
 
 /* ------------------------------------------------------- search/filter */
@@ -436,9 +463,10 @@ function parseQuickInput(raw) {
   if (!value) return null;
   const isUrl = /^https?:\/\/\S+$/i.test(value);
   if (isUrl) {
-    let title = value;
-    try { title = new URL(value).hostname.replace(/^www\./, ""); } catch (_) { /* keep raw */ }
-    return { type: "link", url: value, title, text: "", comment: "", tags: [] };
+    const url = db.stripTrackingParams(value);
+    let title = url;
+    try { title = new URL(url).hostname.replace(/^www\./, ""); } catch (_) { /* keep raw */ }
+    return { type: "link", url, title, text: "", comment: "", tags: [] };
   }
   return { type: "text", url: "", text: value, title: value.split("\n")[0].slice(0, 80), comment: "", tags: [] };
 }
@@ -609,21 +637,46 @@ async function deleteItemWithUndo(item) {
   toast(t("itemDeleted"), "success", {
     actionLabel: t("undo"),
     onAction: async () => {
-      const now = new Date().toISOString();
-      const restored = { ...item, id: db.makeId(), deletedAt: null, updatedAt: now };
-      if (item.mediaId) {
-        restored.mediaId = (await db.cloneMedia(item.mediaId)) || null;
-      }
-      await db.putItem(restored);
-      // The original media is now orphaned by a live item (only the
-      // tombstone references it); purge it so it doesn't linger.
-      if (item.mediaId) await db.deleteMedia(item.mediaId);
+      await restoreDeletedItem(item);
       await refreshCurrentView();
     },
     onExpire: async () => {
       if (item.mediaId) await db.deleteMedia(item.mediaId);
     },
   });
+}
+
+/**
+ * Re-creates a tombstoned item as a live copy under a FRESH id, so the
+ * lingering tombstone (tombstone-always-wins) can't re-kill it on the next
+ * sync. Shared by undo-delete and the "recently deleted" view. Media is
+ * cloned under a new id too; if the original media is already gone (e.g. an
+ * old tombstone whose media was purged when its undo window lapsed), the
+ * record still restores, just without its attachment.
+ */
+async function restoreDeletedItem(item) {
+  const now = new Date().toISOString();
+  const restored = { ...item, id: db.makeId(), deletedAt: null, restoredAt: null, updatedAt: now };
+  if (item.mediaId) {
+    restored.mediaId = (await db.cloneMedia(item.mediaId)) || null;
+  }
+  await db.putItem(restored);
+  // The original media is now orphaned by a live item (only the tombstone
+  // still references it); purge it so it doesn't linger.
+  if (item.mediaId) await db.deleteMedia(item.mediaId);
+  // Mark the lingering tombstone as restored: it keeps deletedAt (so sync
+  // still deletes the old id on other devices) but drops out of the trash
+  // list and can't be restored a second time into a duplicate.
+  const tombstone = await db.getItem(item.id);
+  if (tombstone && tombstone.deletedAt) {
+    await db.putItem({ ...tombstone, restoredAt: now, updatedAt: now });
+  }
+  return restored;
+}
+
+async function restoreFromTrash(item) {
+  await restoreDeletedItem(item);
+  toast(t("itemRestored"), "success");
 }
 
 const TYPES = ["link", "text", "list", "image", "file"];
@@ -804,6 +857,7 @@ async function boot() {
   initDetailView({ onClose: backFromDetailOrAdd, onChanged: refreshCurrentView, onDelete: deleteItemWithUndo, onNavigate: goDetail });
   initAddView({ onSaved: () => history.back(), onCancel: backFromDetailOrAdd });
   initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
+  initTrashView({ onRestore: restoreFromTrash });
 
   initPullToRefresh();
   window.addEventListener("sm:data-changed", refreshCurrentView);
@@ -825,6 +879,7 @@ async function boot() {
   } else {
     await goList();
   }
+  updateAppBadge();
   autoSyncOnLaunch();
 }
 

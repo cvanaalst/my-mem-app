@@ -811,6 +811,41 @@ button, input, textarea, select {
   cursor: pointer;
 }
 .checklist-add .checklist-text { border-style: dashed; }
+.checklist-uncheck {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* ---- Recently deleted (trash) ---- */
+.trash-intro {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.trash-list { display: flex; flex-direction: column; gap: 8px; }
+.trash-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.trash-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trash-item-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trash-item-meta { color: var(--text-tertiary); font-size: 12px; }
+.trash-restore-btn { flex: none; width: auto; padding: 8px 16px; }
+.trash-empty { color: var(--text-secondary); font-size: 14px; }
 
 /* ---- Settings ---- */
 .settings-group {

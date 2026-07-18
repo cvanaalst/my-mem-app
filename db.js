@@ -97,8 +97,46 @@ async function putItems(items) {
   });
 }
 
+// Query params that only track the click, never the content. Exact names
+// plus the utm_* family (handled by prefix below). Kept conservative: only
+// params that are safe to drop on any site without changing what loads.
+const TRACKING_PARAMS = new Set([
+  "fbclid", "gclid", "gclsrc", "dclid", "gbraid", "wbraid", "msclkid",
+  "yclid", "twclid", "igshid", "igsh", "si", "mc_eid", "mc_cid",
+  "_hsenc", "_hsmi", "vero_id", "vero_conv", "oly_enc_id", "oly_anon_id",
+  "ref_src", "ref_url", "scid", "cmpid", "spm",
+]);
+
+/**
+ * Strips click-tracking query params (utm_*, fbclid, igsh, si, …) from a URL,
+ * leaving the rest of the query intact and the path/hash untouched. Returns
+ * the input trimmed (unchanged) if it can't be parsed as an absolute URL.
+ * Pure — unit-tested in tests.html.
+ */
+function stripTrackingParams(url) {
+  const raw = (url || "").trim();
+  if (!raw) return "";
+  let u;
+  try {
+    u = new URL(raw);
+  } catch (_) {
+    return raw; // relative or malformed — leave it alone
+  }
+  const kept = [];
+  for (const [key, value] of u.searchParams.entries()) {
+    const lower = key.toLowerCase();
+    if (lower.startsWith("utm_") || TRACKING_PARAMS.has(lower)) continue;
+    kept.push([key, value]);
+  }
+  u.search = "";
+  for (const [key, value] of kept) u.searchParams.append(key, value);
+  return u.toString();
+}
+
 function normalizeUrl(url) {
-  return (url || "").trim().toLowerCase().replace(/\/+$/, "");
+  // Strip tracking params before comparing so the same page captured with
+  // different utm_/fbclid tails dedupes to one entry.
+  return stripTrackingParams(url).trim().toLowerCase().replace(/\/+$/, "");
 }
 
 /** Finds a live link item with the same URL (normalized), excluding excludeId (the item being edited, if any). */
@@ -115,6 +153,26 @@ async function getItem(id) {
 
 async function getAllItems() {
   return tx(["items"], "readonly", (t) => requestToPromise(t.objectStore("items").getAll()));
+}
+
+/** Count of live items whose reminder date has arrived — drives the app-icon badge. */
+async function countDueReminders() {
+  const all = await getAllItems();
+  const today = new Date().toISOString().slice(0, 10);
+  return all.filter((i) => !i.deletedAt && i.reminderAt && i.reminderAt <= today).length;
+}
+
+/**
+ * Tombstoned items still awaiting nothing — powers the "recently deleted"
+ * view. Tombstones marked restoredAt are hidden: they've already been
+ * brought back under a new id, but their deletedAt is kept so sync still
+ * propagates the original deletion to other devices.
+ */
+async function getDeletedItems() {
+  const all = await getAllItems();
+  return all
+    .filter((i) => i.deletedAt && !i.restoredAt)
+    .sort((a, b) => (b.deletedAt || "").localeCompare(a.deletedAt || ""));
 }
 
 /**
@@ -510,8 +568,11 @@ export const db = {
   putItem,
   putItems,
   findDuplicateLink,
+  stripTrackingParams,
   getItem,
   getAllItems,
+  getDeletedItems,
+  countDueReminders,
   queryItems,
   getImageItems,
   getAllTags,
