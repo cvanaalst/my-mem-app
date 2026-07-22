@@ -290,6 +290,7 @@
           <span data-i18n="autoSync">Automatisch synchroniseren bij starten</span>
           <input id="toggle-autosync" type="checkbox" checked>
         </label>
+        <button type="button" id="btn-view-activity" class="secondary-btn full-width" data-i18n="activityButton">Synchronisatie-logboek</button>
       </div>
 
       <div class="settings-group">
@@ -388,6 +389,17 @@
       </div>
       <p class="trash-intro" data-i18n="trashIntro">Verwijderde items blijven hier tot ze via synchronisatie definitief zijn opgeruimd. Herstellen maakt een nieuwe kopie.</p>
       <div id="trash-list" class="trash-list"></div>
+    </section>
+
+    <!-- Sync / backup / restore activity log -->
+    <section id="view-activity" class="view hidden">
+      <div class="detail-header">
+        <button id="btn-activity-back" class="text-btn" data-i18n="back">Terug</button>
+        <span class="detail-header-title" data-i18n="activityTitle">Logboek</span>
+        <button id="btn-activity-clear" class="text-btn danger" data-i18n="activityClear">Wis logboek</button>
+      </div>
+      <p class="trash-intro" data-i18n="activityIntro">Recente synchronisaties, back-ups en herstelacties op dit toestel.</p>
+      <div id="activity-list" class="activity-list"></div>
     </section>
 
     <!-- Reporting / statistics view -->

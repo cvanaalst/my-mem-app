@@ -872,6 +872,25 @@ button, input, textarea, select {
 .trash-purge-btn { font-size: 12px; color: var(--danger, #e5484d); padding: 2px 4px; }
 .trash-empty { color: var(--text-secondary); font-size: 14px; }
 
+/* ---- Activity log ---- */
+.activity-list { display: flex; flex-direction: column; gap: 6px; }
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.activity-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; margin-top: 6px; background: var(--text-tertiary); }
+.activity-dot-success { background: var(--ios-green, #34c759); }
+.activity-dot-error { background: var(--danger); }
+.activity-dot-skipped { background: var(--text-tertiary); }
+.activity-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.activity-headline { font-size: 14px; color: var(--text); word-break: break-word; }
+.activity-time { font-size: 12px; color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
+
 /* ---- Settings ---- */
 .settings-group {
   background: var(--bg-card);

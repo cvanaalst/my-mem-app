@@ -355,9 +355,11 @@ export async function syncNow() {
     await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: finalMerged });
 
     await db.setMeta("lastSyncAt", new Date().toISOString());
+    await db.logActivity("sync", "success", `+${stats.added} ~${stats.updated} -${stats.deleted}`);
     emitStatus({ state: "success", stats });
     return stats;
   } catch (err) {
+    await db.logActivity("sync", "error", err.message || String(err));
     emitStatus({ state: "error", message: err.message || String(err) });
     throw err;
   }
@@ -371,13 +373,19 @@ export function onStatusChange(fn) {
 /* ---------------------------------------------------------- backup/restore */
 
 export async function createBackup() {
-  const token = await getAccessToken({ pendingAction: "backup" });
-  const rootId = await ensureFolder(token, "SecondMemory", null);
-  const backupsId = await ensureFolder(token, "backups", rootId);
-  const items = await db.getAllItems();
-  const name = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-  await uploadJsonFile(token, { name, parents: [backupsId], data: items });
-  return name;
+  try {
+    const token = await getAccessToken({ pendingAction: "backup" });
+    const rootId = await ensureFolder(token, "SecondMemory", null);
+    const backupsId = await ensureFolder(token, "backups", rootId);
+    const items = await db.getAllItems();
+    const name = `backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+    await uploadJsonFile(token, { name, parents: [backupsId], data: items });
+    await db.logActivity("backup", "success", name);
+    return name;
+  } catch (err) {
+    await db.logActivity("backup", "error", err.message || String(err));
+    throw err;
+  }
 }
 
 export async function listBackups() {
@@ -395,25 +403,32 @@ export async function listBackups() {
  * the very next sync can't silently revert the restore.
  */
 export async function restoreBackup(backupFileId, mode) {
-  const token = await getAccessToken({ pendingAction: "backup" });
-  const backupItems = await downloadJson(token, backupFileId);
-  const rootId = await ensureFolder(token, "SecondMemory", null);
+  try {
+    const token = await getAccessToken({ pendingAction: "backup" });
+    const backupItems = await downloadJson(token, backupFileId);
+    const rootId = await ensureFolder(token, "SecondMemory", null);
 
-  if (mode === "replace") {
-    await db.putItems(backupItems);
+    if (mode === "replace") {
+      await db.putItems(backupItems);
+      const itemsFile = await findFile(token, "items.json", rootId);
+      await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: backupItems });
+      await restoreMissingMedia(token, rootId, backupItems);
+      await db.logActivity("restore", "success", `vervangen (${backupItems.length})`);
+      return { mode: "replace" };
+    }
+
+    const localItems = await db.getAllItems();
+    const { merged, stats } = mergeItemSets(localItems, backupItems);
+    await db.putItems(merged);
     const itemsFile = await findFile(token, "items.json", rootId);
-    await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: backupItems });
-    await restoreMissingMedia(token, rootId, backupItems);
-    return { mode: "replace" };
+    await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: merged });
+    await restoreMissingMedia(token, rootId, merged);
+    await db.logActivity("restore", "success", `samengevoegd +${stats.added} ~${stats.updated} -${stats.deleted}`);
+    return { mode: "merge", stats };
+  } catch (err) {
+    await db.logActivity("restore", "error", err.message || String(err));
+    throw err;
   }
-
-  const localItems = await db.getAllItems();
-  const { merged, stats } = mergeItemSets(localItems, backupItems);
-  await db.putItems(merged);
-  const itemsFile = await findFile(token, "items.json", rootId);
-  await uploadJsonFile(token, { fileId: itemsFile?.id, name: "items.json", parents: itemsFile ? undefined : [rootId], data: merged });
-  await restoreMissingMedia(token, rootId, merged);
-  return { mode: "merge", stats };
 }
 
 async function restoreMissingMedia(token, rootId, items) {

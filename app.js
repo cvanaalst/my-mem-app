@@ -18,6 +18,7 @@ import { initAddView, openAdd } from "./view-add.js";
 import { initSettingsView, refreshSettingsView } from "./view-settings.js";
 import { refreshReportView } from "./view-report.js";
 import { initTrashView, refreshTrashView } from "./view-trash.js";
+import { initActivityView, refreshActivityView } from "./view-activity.js";
 import { renderMarkdown } from "./markdown.js";
 import { HELP_CONTENT } from "./help.js";
 
@@ -33,6 +34,7 @@ const views = {
   report: document.getElementById("view-report"),
   help: document.getElementById("view-help"),
   trash: document.getElementById("view-trash"),
+  activity: document.getElementById("view-activity"),
 };
 const tabButtons = document.querySelectorAll(".tab-btn");
 
@@ -42,7 +44,7 @@ const tabButtons = document.querySelectorAll(".tab-btn");
 // popped back via Back/Cancel) — those transitions slide like native iOS
 // navigation. Switching between tab-bar destinations (list/grid/settings)
 // stays instant, matching how iOS tab bars behave (no slide between tabs).
-const PUSH_TARGETS = new Set(["detail", "add", "report", "help", "trash"]);
+const PUSH_TARGETS = new Set(["detail", "add", "report", "help", "trash", "activity"]);
 
 // Scroll offset per base tab, so returning from a pushed view lands where
 // you left the list — while a freshly-opened detail/add always starts at
@@ -132,6 +134,11 @@ async function goTrash(push = true) {
   showView("trash");
   await refreshTrashView();
 }
+async function goActivity(push = true) {
+  if (push) history.pushState({ smView: "activity" }, "");
+  showView("activity");
+  await refreshActivityView();
+}
 
 // The help text is long-form prose, so it's authored as Markdown (help.js)
 // and rendered with the same minimal renderer the text items use, rather
@@ -147,6 +154,7 @@ function backFromDetailOrAdd() { history.back(); }
 function backFromReport() { history.back(); }
 function backFromHelp() { history.back(); }
 function backFromTrash() { history.back(); }
+function backFromActivity() { history.back(); }
 
 window.addEventListener("popstate", (e) => {
   const s = e.state || {};
@@ -156,6 +164,7 @@ window.addEventListener("popstate", (e) => {
     case "report": goReport(false); break;
     case "help": goHelp(false); break;
     case "trash": goTrash(false); break;
+    case "activity": goActivity(false); break;
     case "grid": goGrid(); break;
     case "settings": goSettings(); break;
     case "list":
@@ -210,6 +219,8 @@ document.getElementById("btn-report-back").addEventListener("click", backFromRep
 document.getElementById("btn-view-help").addEventListener("click", () => goHelp());
 document.getElementById("btn-view-trash").addEventListener("click", () => goTrash());
 document.getElementById("btn-trash-back").addEventListener("click", backFromTrash);
+document.getElementById("btn-view-activity").addEventListener("click", () => goActivity());
+document.getElementById("btn-activity-back").addEventListener("click", backFromActivity);
 document.getElementById("btn-help-back").addEventListener("click", backFromHelp);
 
 /* ------------------------------------------------------- search/filter */
@@ -822,11 +833,20 @@ async function registerServiceWorker() {
 
 async function autoSyncOnLaunch() {
   const enabled = await db.getMeta("autoSyncOnLaunch", true);
-  if (!enabled || !navigator.onLine) return;
+  if (!enabled) return; // user's own choice — not worth logging on every launch
+  if (!navigator.onLine) {
+    await db.logActivity("autosync", "skipped", t("logSkipOffline"));
+    return;
+  }
   const signedIn = await sync.isSignedIn();
-  if (!signedIn) return; // don't ambush the user with a popup on every launch
+  if (!signedIn) {
+    // The Google token lasts ~1 hour and there's no silent refresh, so most
+    // launches land here. Log it so this is visible instead of a mystery.
+    await db.logActivity("autosync", "skipped", t("logSkipSignedOut"));
+    return; // don't ambush the user with a login popup on every launch
+  }
   try {
-    await sync.syncNow();
+    await sync.syncNow(); // success/error is logged inside syncNow
     await refreshCurrentView();
   } catch (err) {
     console.warn("Auto-sync failed:", err);
@@ -925,6 +945,7 @@ async function boot() {
   initAddView({ onSaved: () => history.back(), onCancel: backFromDetailOrAdd });
   initSettingsView({ onThemeChange: setTheme, onLangChange: setLanguage, onDensityChange: setListDensity });
   initTrashView({ onRestore: restoreFromTrash, onPurge: purgeFromTrash });
+  initActivityView();
 
   initPullToRefresh();
   window.addEventListener("sm:data-changed", refreshCurrentView);

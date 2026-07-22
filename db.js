@@ -471,6 +471,34 @@ async function setMeta(key, value) {
   return tx(["meta"], "readwrite", (t) => requestToPromise(t.objectStore("meta").put({ key, value })));
 }
 
+/* -------------------------------------------------------- activity log */
+// A small, local-only diary of sync/backup/restore events so the user can
+// see what actually happened (and why auto-sync may have skipped). Stored in
+// the meta store, capped at the most recent entries. Never synced to Drive.
+const ACTIVITY_LOG_MAX = 60;
+
+/**
+ * Append one activity entry.
+ * kind: "sync" | "backup" | "restore" | "autosync"
+ * outcome: "success" | "error" | "skipped"
+ * detail: short free text (counts, filename, error message, or skip reason)
+ */
+async function logActivity(kind, outcome, detail = "") {
+  const log = (await getMeta("activityLog", [])) || [];
+  log.push({ at: new Date().toISOString(), kind, outcome, detail: String(detail).slice(0, 200) });
+  await setMeta("activityLog", log.slice(-ACTIVITY_LOG_MAX));
+}
+
+/** Entries newest-first, for display. */
+async function getActivityLog() {
+  const log = (await getMeta("activityLog", [])) || [];
+  return log.slice().reverse();
+}
+
+async function clearActivityLog() {
+  await setMeta("activityLog", []);
+}
+
 /* ---------------------------------------------------------- image utils */
 
 /**
@@ -592,6 +620,9 @@ export const db = {
   cloneMedia,
   getMeta,
   setMeta,
+  logActivity,
+  getActivityLog,
+  clearActivityLog,
   makeFullImage,
   makeThumbnail,
   requestPersistentStorage,
